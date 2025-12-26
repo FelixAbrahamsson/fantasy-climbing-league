@@ -1,0 +1,184 @@
+.team-selection {
+  padding: var(--space-xl) 0;
+}
+
+.selection-header {
+  margin-bottom: var(--space-xl);
+}
+
+.selection-header h1 {
+  margin: var(--space-md) 0 var(--space-xs);
+}
+
+.selection-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xl);
+}
+
+/* Roster Section */
+.roster-section,
+.climbers-section {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+}
+
+.roster-section h2,
+.climbers-section h2 {
+  margin-bottom: var(--space-lg);
+  font-size: 1.25rem;
+}
+
+.empty-roster {
+  text-align: center;
+  padding: var(--space-xl);
+  color: var(--color-text-muted);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-lg);
+}
+
+.roster-list,
+.climbers-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.roster-list {
+  margin-bottom: var(--space-lg);
+}
+
+.roster-item,
+.climber-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.roster-item:hover,
+.climber-item:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.climber-item.selected {
+  background: rgba(255, 107, 53, 0.1);
+  border: 1px solid rgba(255, 107, 53, 0.3);
+}
+
+.climber-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.climber-flag {
+  font-size: 1.5rem;
+}
+
+.climber-info > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.climber-name {
+  font-weight: 600;
+}
+
+.climber-country {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.roster-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.captain-btn,
+.remove-btn,
+.add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.captain-btn {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-muted);
+}
+
+.captain-btn:hover {
+  color: var(--color-accent-secondary);
+}
+
+.captain-btn.active {
+  background: rgba(247, 192, 53, 0.2);
+  color: var(--color-accent-secondary);
+}
+
+.remove-btn {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-error);
+}
+
+.remove-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.add-btn {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  min-width: 80px;
+}
+
+.add-btn:hover:not(:disabled) {
+  background: var(--color-accent-gradient);
+  color: white;
+}
+
+.add-btn.added {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--color-success);
+}
+
+.add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.save-btn {
+  margin-top: var(--space-md);
+}
+
+.success-message {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  margin-bottom: var(--space-lg);
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--color-success);
+}
+
+@media (max-width: 768px) {
+  .selection-grid {
+    grid-template-columns: 1fr;
+  }
+}
