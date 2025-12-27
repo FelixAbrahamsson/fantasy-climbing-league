@@ -8,6 +8,8 @@ import type {
   RosterEntry,
   Event,
   LeaderboardEntry,
+  TeamEventBreakdown,
+  LeagueEventBreakdown,
 } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
@@ -92,6 +94,12 @@ export const teamsAPI = {
     fetchAPI<{ message: string }>(`/teams/${teamId}/captain/${climberId}`, {
       method: "PUT",
     }),
+
+  getEventBreakdown: (teamId: string) =>
+    fetchAPI<TeamEventBreakdown>(`/teams/${teamId}/event-breakdown`),
+
+  getLeagueEventBreakdown: (leagueId: string) =>
+    fetchAPI<LeagueEventBreakdown>(`/teams/league/${leagueId}/event-breakdown`),
 };
 
 // Climbers

@@ -8,6 +8,8 @@ import { Leagues } from "./pages/Leagues";
 import { CreateLeague } from "./pages/CreateLeague";
 import { LeagueDashboard } from "./pages/LeagueDashboard";
 import { TeamSelection } from "./pages/TeamSelection";
+import { TeamBreakdown } from "./pages/TeamBreakdown";
+import { EventBreakdown } from "./pages/EventBreakdown";
 import "./index.css";
 
 function App() {
@@ -23,7 +25,15 @@ function App() {
             <Route path="/leagues" element={<Leagues />} />
             <Route path="/leagues/create" element={<CreateLeague />} />
             <Route path="/leagues/:leagueId" element={<LeagueDashboard />} />
+            <Route
+              path="/leagues/:leagueId/events"
+              element={<EventBreakdown />}
+            />
             <Route path="/teams/:teamId" element={<TeamSelection />} />
+            <Route
+              path="/teams/:teamId/breakdown"
+              element={<TeamBreakdown />}
+            />
           </Routes>
         </main>
       </AuthProvider>

@@ -66,3 +66,60 @@ export interface User {
   email: string;
   username?: string;
 }
+
+export interface AthleteEventScore {
+  climber_id: number;
+  climber_name: string;
+  country: string | null;
+  is_captain: boolean;
+  rank: number | null;
+  base_points: number;
+  total_points: number;
+}
+
+export interface EventBreakdown {
+  event_id: number;
+  event_name: string;
+  event_date: string;
+  event_status: "upcoming" | "completed";
+  team_total: number;
+  athlete_scores: AthleteEventScore[];
+}
+
+export interface TeamEventBreakdown {
+  team_id: string;
+  team_name: string;
+  league_id: string;
+  events: EventBreakdown[];
+}
+
+// League-wide event breakdown types
+export interface LeagueAthleteScore {
+  climber_id: number;
+  climber_name: string;
+  country: string | null;
+  is_captain: boolean;
+  rank: number | null;
+  points: number;
+}
+
+export interface LeagueTeamEventData {
+  team_id: string;
+  team_name: string;
+  username: string | null;
+  team_total: number;
+  athletes: LeagueAthleteScore[];
+}
+
+export interface LeagueEventData {
+  event_id: number;
+  event_name: string;
+  event_date: string;
+  event_status: "upcoming" | "completed";
+  teams: LeagueTeamEventData[];
+}
+
+export interface LeagueEventBreakdown {
+  league_id: string;
+  events: LeagueEventData[];
+}

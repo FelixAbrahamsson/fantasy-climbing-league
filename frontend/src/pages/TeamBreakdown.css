@@ -1,0 +1,275 @@
+.team-breakdown {
+  padding: var(--space-xl) 0;
+  min-height: calc(100vh - 80px);
+}
+
+.breakdown-header {
+  margin-bottom: var(--space-xl);
+}
+
+.breakdown-header h1 {
+  font-size: 1.75rem;
+  margin: var(--space-md) 0;
+}
+
+.total-points {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.2), rgba(138, 43, 226, 0.2));
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  color: var(--color-accent-primary);
+}
+
+.breakdown-content {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: var(--space-xl);
+}
+
+/* Event Tabs */
+.event-tabs {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+}
+
+.event-tabs h2 {
+  font-size: 1rem;
+  margin-bottom: var(--space-md);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tabs-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.event-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-bg-secondary);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+  width: 100%;
+}
+
+.event-tab:hover {
+  border-color: var(--color-border);
+}
+
+.event-tab.active {
+  background: rgba(255, 107, 53, 0.1);
+  border-color: var(--color-accent-primary);
+}
+
+.event-tab.upcoming {
+  opacity: 0.6;
+}
+
+.event-tab-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-tab-name {
+  display: block;
+  font-weight: 500;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-tab-date {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.event-tab-points {
+  flex-shrink: 0;
+}
+
+.points-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  padding: 2px 8px;
+  background: var(--color-accent-primary);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.no-points {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.tab-arrow {
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+/* Event Details */
+.event-details {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  border: 1px solid var(--color-border);
+}
+
+.event-details-header {
+  margin-bottom: var(--space-lg);
+}
+
+.event-details-header h2 {
+  font-size: 1.25rem;
+  margin-bottom: var(--space-sm);
+}
+
+.event-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.event-total {
+  color: var(--color-text-secondary);
+}
+
+.event-total strong {
+  color: var(--color-accent-primary);
+  font-size: 1.25rem;
+}
+
+/* Scores Table */
+.scores-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.scores-table th,
+.scores-table td {
+  padding: var(--space-md);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.scores-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.scores-table tbody tr:hover {
+  background: var(--color-bg-secondary);
+}
+
+.scores-table tbody tr.no-score {
+  opacity: 0.5;
+}
+
+.athlete-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.athlete-flag {
+  font-size: 1.25rem;
+}
+
+.athlete-name {
+  font-weight: 500;
+}
+
+.captain-icon {
+  color: var(--color-accent-gold);
+}
+
+.rank-cell .rank {
+  font-weight: 600;
+}
+
+.rank-cell .rank.top-rank {
+  color: var(--color-accent-gold);
+}
+
+.rank-cell .no-result {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.points-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.points-value {
+  font-weight: 600;
+  font-size: 1.125rem;
+  color: var(--color-accent-primary);
+}
+
+.captain-bonus {
+  font-size: 0.625rem;
+  padding: 2px 4px;
+  background: var(--color-accent-gold);
+  color: #000;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.no-event-selected {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--color-text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .breakdown-content {
+    grid-template-columns: 1fr;
+  }
+
+  .event-tabs {
+    order: 2;
+  }
+
+  .event-details {
+    order: 1;
+  }
+
+  .tabs-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: var(--space-sm);
+  }
+
+  .tab-arrow {
+    display: none;
+  }
+}

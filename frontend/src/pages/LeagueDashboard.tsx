@@ -154,6 +154,12 @@ export function LeagueDashboard() {
               <h2>
                 <Trophy size={20} /> Leaderboard
               </h2>
+              <Link
+                to={`/leagues/${leagueId}/events`}
+                className="btn btn-secondary btn-sm"
+              >
+                View Events
+              </Link>
             </div>
 
             {leaderboard.length === 0 ? (
@@ -164,9 +170,10 @@ export function LeagueDashboard() {
             ) : (
               <div className="leaderboard-list">
                 {leaderboard.map((entry, index) => (
-                  <div
+                  <Link
+                    to={`/teams/${entry.team_id}/breakdown`}
                     key={entry.team_id}
-                    className={`leaderboard-item ${
+                    className={`leaderboard-entry ${
                       index < 3 ? `top-${index + 1}` : ""
                     }`}
                   >
@@ -188,7 +195,7 @@ export function LeagueDashboard() {
                     <div className="score">
                       {entry.total_score.toLocaleString()}
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}

@@ -216,3 +216,316 @@ def set_captain(
         raise HTTPException(status_code=404, detail="Climber not found in roster")
 
     return {"message": "Captain updated successfully"}
+
+
+@router.get("/{team_id}/event-breakdown")
+def get_team_event_breakdown(team_id: uuid.UUID):
+    """Get breakdown of team scores per event with athlete details."""
+    from app.services.scoring import calculate_climber_score
+
+    # Get team with league info
+    team_response = (
+        supabase.table("fantasy_teams")
+        .select("*, leagues(discipline, gender)")
+        .eq("id", str(team_id))
+        .single()
+        .execute()
+    )
+
+    if not team_response.data:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    team = team_response.data
+    league = team.get("leagues") or {}
+
+    # Get roster with climber details
+    roster_response = (
+        supabase.table("team_roster")
+        .select("climber_id, is_captain, climbers(id, name, country)")
+        .eq("team_id", str(team_id))
+        .is_("removed_at", "null")
+        .execute()
+    )
+
+    roster = roster_response.data or []
+    climber_ids = [r["climber_id"] for r in roster]
+    climber_map = {}
+    captain_id = None
+    for r in roster:
+        climber_data = r.get("climbers") or {}
+        climber_map[r["climber_id"]] = {
+            "id": climber_data.get("id"),
+            "name": climber_data.get("name", "Unknown"),
+            "country": climber_data.get("country"),
+            "is_captain": r.get("is_captain", False),
+        }
+        if r.get("is_captain"):
+            captain_id = r["climber_id"]
+
+    # Get league events or fall back to matching discipline/gender events
+    league_id = team["league_id"]
+    league_events_response = (
+        supabase.table("league_events")
+        .select("event_id")
+        .eq("league_id", league_id)
+        .execute()
+    )
+
+    if league_events_response.data:
+        event_ids = [le["event_id"] for le in league_events_response.data]
+        events_response = (
+            supabase.table("events")
+            .select("*")
+            .in_("id", event_ids)
+            .order("date", desc=False)
+            .execute()
+        )
+    else:
+        events_response = (
+            supabase.table("events")
+            .select("*")
+            .eq("discipline", league.get("discipline"))
+            .eq("gender", league.get("gender"))
+            .order("date", desc=False)
+            .execute()
+        )
+
+    events = events_response.data or []
+
+    # Get all event results for team climbers
+    event_breakdown = []
+
+    for event in events:
+        event_id = event["id"]
+
+        # Get results for all team climbers in this event
+        results_response = (
+            (
+                supabase.table("event_results")
+                .select("climber_id, rank, score")
+                .eq("event_id", event_id)
+                .in_("climber_id", climber_ids)
+                .execute()
+            )
+            if climber_ids
+            else {"data": []}
+        )
+
+        athlete_scores = []
+        event_total = 0
+
+        results_map = {
+            r["climber_id"]: r
+            for r in (
+                results_response.data
+                if hasattr(results_response, "data")
+                else results_response.get("data", [])
+            )
+        }
+
+        for climber_id, climber_info in climber_map.items():
+            result = results_map.get(climber_id)
+            if result:
+                is_captain = climber_info["is_captain"]
+                points = calculate_climber_score(result["rank"], is_captain)
+                athlete_scores.append(
+                    {
+                        "climber_id": climber_id,
+                        "climber_name": climber_info["name"],
+                        "country": climber_info["country"],
+                        "is_captain": is_captain,
+                        "rank": result["rank"],
+                        "base_points": result["score"],
+                        "total_points": points,
+                    }
+                )
+                event_total += points
+            else:
+                athlete_scores.append(
+                    {
+                        "climber_id": climber_id,
+                        "climber_name": climber_info["name"],
+                        "country": climber_info["country"],
+                        "is_captain": climber_info["is_captain"],
+                        "rank": None,
+                        "base_points": 0,
+                        "total_points": 0,
+                    }
+                )
+
+        # Sort by points descending
+        athlete_scores.sort(key=lambda x: x["total_points"], reverse=True)
+
+        event_breakdown.append(
+            {
+                "event_id": event_id,
+                "event_name": event["name"],
+                "event_date": event["date"],
+                "event_status": event["status"],
+                "team_total": event_total,
+                "athlete_scores": athlete_scores,
+            }
+        )
+
+    return {
+        "team_id": str(team_id),
+        "team_name": team["name"],
+        "league_id": league_id,
+        "events": event_breakdown,
+    }
+
+
+@router.get("/league/{league_id}/event-breakdown")
+def get_league_event_breakdown(league_id: uuid.UUID):
+    """Get breakdown of all teams' scores per event for a league."""
+    from app.services.scoring import calculate_climber_score
+
+    # Get league info
+    league_response = (
+        supabase.table("leagues")
+        .select("discipline, gender")
+        .eq("id", str(league_id))
+        .single()
+        .execute()
+    )
+
+    if not league_response.data:
+        raise HTTPException(status_code=404, detail="League not found")
+
+    league = league_response.data
+
+    # Get all teams in the league with their rosters
+    teams_response = (
+        supabase.table("fantasy_teams")
+        .select("id, name, user_id, profiles(username)")
+        .eq("league_id", str(league_id))
+        .execute()
+    )
+
+    teams = teams_response.data or []
+
+    # Get rosters for all teams
+    team_rosters = {}
+    for team in teams:
+        roster_response = (
+            supabase.table("team_roster")
+            .select("climber_id, is_captain, climbers(id, name, country)")
+            .eq("team_id", team["id"])
+            .is_("removed_at", "null")
+            .execute()
+        )
+        team_rosters[team["id"]] = roster_response.data or []
+
+    # Get league events or fall back to matching discipline/gender events
+    league_events_response = (
+        supabase.table("league_events")
+        .select("event_id")
+        .eq("league_id", str(league_id))
+        .execute()
+    )
+
+    if league_events_response.data:
+        event_ids = [le["event_id"] for le in league_events_response.data]
+        events_response = (
+            supabase.table("events")
+            .select("*")
+            .in_("id", event_ids)
+            .order("date", desc=False)
+            .execute()
+        )
+    else:
+        events_response = (
+            supabase.table("events")
+            .select("*")
+            .eq("discipline", league.get("discipline"))
+            .eq("gender", league.get("gender"))
+            .order("date", desc=False)
+            .execute()
+        )
+
+    events = events_response.data or []
+
+    # Build breakdown per event
+    event_breakdown = []
+
+    for event in events:
+        event_id = event["id"]
+
+        # Get all event results for this event
+        all_results_response = (
+            supabase.table("event_results")
+            .select("climber_id, rank, score")
+            .eq("event_id", event_id)
+            .execute()
+        )
+        results_map = {r["climber_id"]: r for r in (all_results_response.data or [])}
+
+        # Calculate scores for each team
+        teams_data = []
+        for team in teams:
+            roster = team_rosters.get(team["id"], [])
+            athlete_scores = []
+            team_total = 0
+
+            for r in roster:
+                climber_data = r.get("climbers") or {}
+                climber_id = r["climber_id"]
+                is_captain = r.get("is_captain", False)
+                result = results_map.get(climber_id)
+
+                if result:
+                    points = calculate_climber_score(result["rank"], is_captain)
+                    team_total += points
+                    athlete_scores.append(
+                        {
+                            "climber_id": climber_id,
+                            "climber_name": climber_data.get("name", "Unknown"),
+                            "country": climber_data.get("country"),
+                            "is_captain": is_captain,
+                            "rank": result["rank"],
+                            "points": points,
+                        }
+                    )
+                else:
+                    athlete_scores.append(
+                        {
+                            "climber_id": climber_id,
+                            "climber_name": climber_data.get("name", "Unknown"),
+                            "country": climber_data.get("country"),
+                            "is_captain": is_captain,
+                            "rank": None,
+                            "points": 0,
+                        }
+                    )
+
+            # Sort athletes by points descending
+            athlete_scores.sort(key=lambda x: x["points"], reverse=True)
+
+            profile = team.get("profiles") or {}
+            teams_data.append(
+                {
+                    "team_id": team["id"],
+                    "team_name": team["name"],
+                    "username": profile.get("username"),
+                    "team_total": team_total,
+                    "athletes": athlete_scores,
+                }
+            )
+
+        # Sort teams by total for this event
+        teams_data.sort(key=lambda x: x["team_total"], reverse=True)
+
+        event_breakdown.append(
+            {
+                "event_id": event_id,
+                "event_name": event["name"],
+                "event_date": event["date"],
+                "event_status": event["status"],
+                "teams": teams_data,
+            }
+        )
+
+    return {
+        "league_id": str(league_id),
+        "events": event_breakdown,
+    }
