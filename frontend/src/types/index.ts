@@ -8,6 +8,7 @@ export interface League {
   admin_id: string;
   invite_code: string | null;
   created_at: string;
+  transfers_per_event: number;
 }
 
 export interface LeagueCreate {
@@ -15,6 +16,7 @@ export interface LeagueCreate {
   gender: "men" | "women";
   discipline: "boulder" | "lead";
   event_ids?: number[];
+  transfers_per_event?: number;
 }
 
 export interface Climber {
@@ -122,4 +124,24 @@ export interface LeagueEventData {
 export interface LeagueEventBreakdown {
   league_id: string;
   events: LeagueEventData[];
+}
+
+// Transfer types
+export interface Transfer {
+  id: string;
+  team_id: string;
+  after_event_id: number;
+  climber_out_id: number;
+  climber_in_id: number;
+  created_at: string;
+  reverted_at: string | null;
+  climber_out_name?: string;
+  climber_in_name?: string;
+}
+
+export interface TransferCreate {
+  after_event_id: number;
+  climber_out_id: number;
+  climber_in_id: number;
+  new_captain_id?: number;
 }

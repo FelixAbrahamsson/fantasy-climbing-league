@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Crown, Plus, Minus, Check } from "lucide-react";
 import { teamsAPI, climbersAPI } from "../services/api";
 import type { TeamWithRoster, Climber, RosterEntry } from "../types";
+import { TransferSection } from "../components/TransferSection";
 import "./TeamSelection.css";
 
 export function TeamSelection() {
@@ -254,6 +255,14 @@ export function TeamSelection() {
             </div>
           </section>
         </div>
+
+        {/* Transfer Section */}
+        <TransferSection
+          teamId={teamId!}
+          roster={selectedRoster}
+          availableClimbers={availableClimbers}
+          onTransferComplete={loadData}
+        />
       </div>
     </div>
   );

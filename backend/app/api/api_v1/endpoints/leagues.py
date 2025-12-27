@@ -25,6 +25,7 @@ def create_league(
         "discipline": league_in.discipline,
         "admin_id": user_id,
         "invite_code": invite_code,
+        "transfers_per_event": league_in.transfers_per_event,
     }
 
     response = supabase.table("leagues").insert(league_data).execute()

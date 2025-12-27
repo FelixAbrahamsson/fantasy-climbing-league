@@ -1,0 +1,201 @@
+.transfer-section {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  margin-top: var(--space-lg);
+}
+
+.transfer-section h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  font-size: 1.125rem;
+}
+
+.transfer-section h4 {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-sm);
+  font-weight: 500;
+}
+
+.transfer-section-loading {
+  padding: var(--space-lg);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+/* Pending Transfers */
+.pending-transfers {
+  margin-bottom: var(--space-lg);
+}
+
+.pending-transfer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(255, 107, 53, 0.1);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-sm);
+}
+
+.transfer-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.transfer-info .out {
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+}
+
+.transfer-info .in {
+  color: var(--color-accent-primary);
+  font-weight: 500;
+}
+
+.btn-undo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--space-xs) var(--space-sm);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all var(--transition-fast);
+}
+
+.btn-undo:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
+/* Available Transfer Events */
+.transfer-events {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.transfer-event-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+}
+
+.transfer-event-btn:hover {
+  border-color: var(--color-accent-primary);
+  background: rgba(255, 107, 53, 0.05);
+}
+
+.transfer-event-btn .event-date {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.no-transfers {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+/* Transfer Modal */
+.transfer-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--space-lg);
+}
+
+.transfer-modal {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  max-width: 500px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.transfer-modal h3 {
+  margin-bottom: var(--space-lg);
+}
+
+.transfer-step {
+  margin-bottom: var(--space-lg);
+}
+
+.transfer-step label {
+  display: block;
+  margin-bottom: var(--space-sm);
+  font-weight: 500;
+}
+
+.player-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.player-grid.scrollable {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.player-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--color-bg-secondary);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all var(--transition-fast);
+}
+
+.player-btn:hover {
+  border-color: var(--color-accent-primary);
+}
+
+.player-btn.selected {
+  background: rgba(255, 107, 53, 0.1);
+  border-color: var(--color-accent-primary);
+  color: var(--color-accent-primary);
+}
+
+.captain-step label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--color-accent-gold);
+}
+
+.modal-actions {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: flex-end;
+  margin-top: var(--space-xl);
+}

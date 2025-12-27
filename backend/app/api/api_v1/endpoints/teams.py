@@ -529,3 +529,315 @@ def get_league_event_breakdown(league_id: uuid.UUID):
         "league_id": str(league_id),
         "events": event_breakdown,
     }
+
+
+# =============================================================================
+# Transfer Endpoints
+# =============================================================================
+
+from datetime import datetime, timezone
+
+from app.schemas.transfer import TransferCreate, TransferResponse
+
+
+@router.post("/{team_id}/transfer", response_model=TransferResponse)
+def create_transfer(
+    team_id: uuid.UUID,
+    transfer_in: TransferCreate,
+    authorization: str = Header(None),
+):
+    """Make a transfer (swap one climber for another) after an event."""
+    user_id = get_current_user_id(authorization)
+
+    # Verify team ownership
+    team_response = (
+        supabase.table("fantasy_teams")
+        .select("*, leagues(transfers_per_event, discipline, gender)")
+        .eq("id", str(team_id))
+        .single()
+        .execute()
+    )
+
+    if not team_response.data:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    team = team_response.data
+    if team["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="You don't own this team")
+
+    league = team.get("leagues") or {}
+    transfers_allowed = league.get("transfers_per_event", 1)
+
+    if transfers_allowed == 0:
+        raise HTTPException(
+            status_code=400, detail="Transfers are disabled for this league"
+        )
+
+    # Verify the event exists and is completed
+    event_response = (
+        supabase.table("events")
+        .select("*")
+        .eq("id", transfer_in.after_event_id)
+        .single()
+        .execute()
+    )
+
+    if not event_response.data:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    event = event_response.data
+    if event["status"] != "completed":
+        raise HTTPException(status_code=400, detail="Event is not completed yet")
+
+    # Check if next event has started (transfer window closed)
+    next_event = (
+        supabase.table("events")
+        .select("*")
+        .eq("discipline", league.get("discipline"))
+        .eq("gender", league.get("gender"))
+        .gt("date", event["date"])
+        .order("date", desc=False)
+        .limit(1)
+        .execute()
+    )
+
+    if next_event.data and len(next_event.data) > 0:
+        next_event_data = next_event.data[0]
+        if next_event_data["status"] in ["completed", "in_progress"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Transfer window has closed (next event has started)",
+            )
+
+    # Count existing active transfers for this event
+    existing_transfers = (
+        supabase.table("team_transfers")
+        .select("id")
+        .eq("team_id", str(team_id))
+        .eq("after_event_id", transfer_in.after_event_id)
+        .is_("reverted_at", "null")
+        .execute()
+    )
+
+    if len(existing_transfers.data or []) >= transfers_allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Maximum {transfers_allowed} transfer(s) allowed per event",
+        )
+
+    # Verify climber_out is in current roster
+    roster_check = (
+        supabase.table("team_roster")
+        .select("id, is_captain")
+        .eq("team_id", str(team_id))
+        .eq("climber_id", transfer_in.climber_out_id)
+        .is_("removed_at", "null")
+        .execute()
+    )
+
+    if not roster_check.data:
+        raise HTTPException(
+            status_code=400, detail="Climber to remove is not in your roster"
+        )
+
+    is_swapping_captain = roster_check.data[0].get("is_captain", False)
+
+    if is_swapping_captain and not transfer_in.new_captain_id:
+        raise HTTPException(
+            status_code=400,
+            detail="You are swapping out your captain. Please provide new_captain_id",
+        )
+
+    # Verify climber_in is not already in roster
+    in_roster_check = (
+        supabase.table("team_roster")
+        .select("id")
+        .eq("team_id", str(team_id))
+        .eq("climber_id", transfer_in.climber_in_id)
+        .is_("removed_at", "null")
+        .execute()
+    )
+
+    if in_roster_check.data:
+        raise HTTPException(
+            status_code=400, detail="New climber is already in your roster"
+        )
+
+    # Perform the transfer
+    now = datetime.now(timezone.utc).isoformat()
+
+    # Remove the old climber from roster
+    supabase.table("team_roster").update({"removed_at": now}).eq(
+        "team_id", str(team_id)
+    ).eq("climber_id", transfer_in.climber_out_id).is_("removed_at", "null").execute()
+
+    # Add the new climber to roster
+    new_is_captain = (
+        is_swapping_captain and transfer_in.new_captain_id == transfer_in.climber_in_id
+    )
+    supabase.table("team_roster").insert(
+        {
+            "team_id": str(team_id),
+            "climber_id": transfer_in.climber_in_id,
+            "is_captain": new_is_captain,
+            "added_at": now,
+        }
+    ).execute()
+
+    # If swapping captain and new captain is existing roster member, update their captain status
+    if is_swapping_captain and transfer_in.new_captain_id != transfer_in.climber_in_id:
+        supabase.table("team_roster").update({"is_captain": True}).eq(
+            "team_id", str(team_id)
+        ).eq("climber_id", transfer_in.new_captain_id).is_(
+            "removed_at", "null"
+        ).execute()
+
+    # Record the transfer
+    transfer_data = {
+        "team_id": str(team_id),
+        "after_event_id": transfer_in.after_event_id,
+        "climber_out_id": transfer_in.climber_out_id,
+        "climber_in_id": transfer_in.climber_in_id,
+    }
+
+    transfer_response = supabase.table("team_transfers").insert(transfer_data).execute()
+
+    if not transfer_response.data:
+        raise HTTPException(status_code=500, detail="Failed to record transfer")
+
+    return transfer_response.data[0]
+
+
+@router.delete("/{team_id}/transfer/{after_event_id}")
+def revert_transfer(
+    team_id: uuid.UUID,
+    after_event_id: int,
+    authorization: str = Header(None),
+):
+    """Revert a transfer made after an event (before next event starts)."""
+    user_id = get_current_user_id(authorization)
+
+    # Verify team ownership
+    team_response = (
+        supabase.table("fantasy_teams")
+        .select("*, leagues(discipline, gender)")
+        .eq("id", str(team_id))
+        .single()
+        .execute()
+    )
+
+    if not team_response.data:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    team = team_response.data
+    if team["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="You don't own this team")
+
+    league = team.get("leagues") or {}
+
+    # Get the transfer to revert
+    transfer_response = (
+        supabase.table("team_transfers")
+        .select("*")
+        .eq("team_id", str(team_id))
+        .eq("after_event_id", after_event_id)
+        .is_("reverted_at", "null")
+        .execute()
+    )
+
+    if not transfer_response.data:
+        raise HTTPException(
+            status_code=404, detail="No active transfer found for this event"
+        )
+
+    # Check if window is still open
+    event_response = (
+        supabase.table("events").select("*").eq("id", after_event_id).single().execute()
+    )
+
+    if not event_response.data:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    event = event_response.data
+
+    next_event = (
+        supabase.table("events")
+        .select("*")
+        .eq("discipline", league.get("discipline"))
+        .eq("gender", league.get("gender"))
+        .gt("date", event["date"])
+        .order("date", desc=False)
+        .limit(1)
+        .execute()
+    )
+
+    if next_event.data and len(next_event.data) > 0:
+        next_event_data = next_event.data[0]
+        if next_event_data["status"] in ["completed", "in_progress"]:
+            raise HTTPException(status_code=400, detail="Transfer window has closed")
+
+    # Revert all transfers for this event
+    now = datetime.now(timezone.utc).isoformat()
+
+    for transfer in transfer_response.data:
+        # Remove the new climber
+        supabase.table("team_roster").update({"removed_at": now}).eq(
+            "team_id", str(team_id)
+        ).eq("climber_id", transfer["climber_in_id"]).is_(
+            "removed_at", "null"
+        ).execute()
+
+        # Re-add the old climber
+        supabase.table("team_roster").insert(
+            {
+                "team_id": str(team_id),
+                "climber_id": transfer["climber_out_id"],
+                "is_captain": False,  # Will need to set captain manually
+                "added_at": now,
+            }
+        ).execute()
+
+        # Mark transfer as reverted
+        supabase.table("team_transfers").update({"reverted_at": now}).eq(
+            "id", transfer["id"]
+        ).execute()
+
+    return {"message": "Transfer(s) reverted successfully"}
+
+
+@router.get("/{team_id}/transfers", response_model=List[TransferResponse])
+def get_team_transfers(team_id: uuid.UUID):
+    """Get all transfers for a team."""
+    transfers_response = (
+        supabase.table("team_transfers")
+        .select(
+            "*, climber_out:climbers!team_transfers_climber_out_id_fkey(name), climber_in:climbers!team_transfers_climber_in_id_fkey(name)"
+        )
+        .eq("team_id", str(team_id))
+        .order("created_at", desc=True)
+        .execute()
+    )
+
+    transfers = []
+    for t in transfers_response.data or []:
+        transfers.append(
+            {
+                "id": t["id"],
+                "team_id": t["team_id"],
+                "after_event_id": t["after_event_id"],
+                "climber_out_id": t["climber_out_id"],
+                "climber_in_id": t["climber_in_id"],
+                "created_at": t["created_at"],
+                "reverted_at": t.get("reverted_at"),
+                "climber_out_name": (
+                    t.get("climber_out", {}).get("name")
+                    if t.get("climber_out")
+                    else None
+                ),
+                "climber_in_name": (
+                    t.get("climber_in", {}).get("name") if t.get("climber_in") else None
+                ),
+            }
+        )
+
+    return transfers

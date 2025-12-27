@@ -10,6 +10,8 @@ import type {
   LeaderboardEntry,
   TeamEventBreakdown,
   LeagueEventBreakdown,
+  Transfer,
+  TransferCreate,
 } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
@@ -100,6 +102,21 @@ export const teamsAPI = {
 
   getLeagueEventBreakdown: (leagueId: string) =>
     fetchAPI<LeagueEventBreakdown>(`/teams/league/${leagueId}/event-breakdown`),
+
+  // Transfer actions
+  getTransfers: (teamId: string) =>
+    fetchAPI<Transfer[]>(`/teams/${teamId}/transfers`),
+
+  createTransfer: (teamId: string, data: TransferCreate) =>
+    fetchAPI<Transfer>(`/teams/${teamId}/transfer`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  revertTransfer: (teamId: string, afterEventId: number) =>
+    fetchAPI<{ message: string }>(`/teams/${teamId}/transfer/${afterEventId}`, {
+      method: "DELETE",
+    }),
 };
 
 // Climbers

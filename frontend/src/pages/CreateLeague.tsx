@@ -14,6 +14,7 @@ export function CreateLeague() {
   const [events, setEvents] = useState<Event[]>([]);
   const [selectedEventIds, setSelectedEventIds] = useState<number[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [transfersPerEvent, setTransfersPerEvent] = useState(1);
   const navigate = useNavigate();
 
   // Fetch events when gender or discipline changes
@@ -74,6 +75,7 @@ export function CreateLeague() {
         gender,
         discipline,
         event_ids: selectedEventIds,
+        transfers_per_event: transfersPerEvent,
       });
       navigate(`/leagues/${league.id}`);
     } catch (err) {
@@ -169,6 +171,46 @@ export function CreateLeague() {
                     Lead
                   </button>
                 </div>
+              </div>
+
+              {/* Transfers Per Event */}
+              <div className="input-group">
+                <label>
+                  Transfers Per Event
+                  <span className="input-hint">
+                    (
+                    {transfersPerEvent === 0
+                      ? "No transfers"
+                      : `${transfersPerEvent} swap${
+                          transfersPerEvent > 1 ? "s" : ""
+                        }`}
+                    )
+                  </span>
+                </label>
+                <div className="slider-container">
+                  <input
+                    type="range"
+                    min="0"
+                    max="6"
+                    value={transfersPerEvent}
+                    onChange={(e) =>
+                      setTransfersPerEvent(Number(e.target.value))
+                    }
+                    className="slider"
+                  />
+                  <div className="slider-labels">
+                    <span>0</span>
+                    <span>1</span>
+                    <span>2</span>
+                    <span>3</span>
+                    <span>4</span>
+                    <span>5</span>
+                    <span>6</span>
+                  </div>
+                </div>
+                <p className="input-description">
+                  Allow players to swap team members after each completed event
+                </p>
               </div>
             </div>
 

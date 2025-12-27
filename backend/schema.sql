@@ -16,7 +16,8 @@ create table public.leagues (
   admin_id uuid references public.profiles(id) not null,
   gender text check (gender in ('men', 'women')) not null,
   discipline text check (discipline in ('boulder', 'lead')) not null,
-  invite_code text unique
+  invite_code text unique,
+  transfers_per_event integer default 1 check (transfers_per_event >= 0 and transfers_per_event <= 6)
 );
 
 -- League Members
@@ -74,6 +75,18 @@ create table public.team_roster (
   is_captain boolean default false,
   added_at timestamp with time zone default timezone('utc'::text, now()) not null,
   removed_at timestamp with time zone -- If null, currently in team
+);
+
+-- Team Transfers (tracks swaps after events)
+create table public.team_transfers (
+  id uuid default gen_random_uuid() primary key,
+  team_id uuid references public.fantasy_teams(id) on delete cascade not null,
+  after_event_id integer references public.events(id) not null,
+  climber_out_id integer references public.climbers(id) not null,
+  climber_in_id integer references public.climbers(id) not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  reverted_at timestamp with time zone, -- null = active transfer
+  unique(team_id, after_event_id, climber_out_id) -- tracks individual transfers
 );
 
 -- Results

@@ -15,6 +15,12 @@ class LeagueCreate(LeagueBase):
     event_ids: list[int] = Field(
         default=[], description="List of event IDs to include in the league"
     )
+    transfers_per_event: int = Field(
+        default=1,
+        ge=0,
+        le=6,
+        description="Number of transfers allowed after each event",
+    )
 
 
 class LeagueResponse(LeagueBase):
@@ -22,6 +28,7 @@ class LeagueResponse(LeagueBase):
     admin_id: UUID
     invite_code: Optional[str] = None
     created_at: datetime
+    transfers_per_event: int = 1
 
     model_config = {"from_attributes": True}
 
