@@ -48,6 +48,14 @@ create table public.events (
   status text check (status in ('upcoming', 'completed')) default 'upcoming'
 );
 
+-- League Events (junction table for which events are part of a league)
+create table public.league_events (
+  id uuid default gen_random_uuid() primary key,
+  league_id uuid references public.leagues(id) on delete cascade not null,
+  event_id integer references public.events(id) on delete cascade not null,
+  unique(league_id, event_id)
+);
+
 -- Fantasy Teams
 create table public.fantasy_teams (
   id uuid default gen_random_uuid() primary key,

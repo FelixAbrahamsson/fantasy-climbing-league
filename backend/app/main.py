@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    redirect_slashes=False,  # Prevent 307 redirects that break CORS
 )
 
 # CORS configuration

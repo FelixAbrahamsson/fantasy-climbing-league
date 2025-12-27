@@ -43,6 +43,14 @@ def create_league(
         }
     ).execute()
 
+    # Add selected events to the league
+    if league_in.event_ids:
+        event_records = [
+            {"league_id": league["id"], "event_id": event_id}
+            for event_id in league_in.event_ids
+        ]
+        supabase.table("league_events").insert(event_records).execute()
+
     return league
 
 

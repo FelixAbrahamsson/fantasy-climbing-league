@@ -16,11 +16,13 @@ import {
   leaderboardAPI,
   eventsAPI,
 } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import type { League, Team, LeaderboardEntry, Event } from "../types";
 import "./LeagueDashboard.css";
 
 export function LeagueDashboard() {
   const { leagueId } = useParams<{ leagueId: string }>();
+  const { user } = useAuth();
   const [league, setLeague] = useState<League | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -30,6 +32,9 @@ export function LeagueDashboard() {
   const [copied, setCopied] = useState(false);
   const [creatingTeam, setCreatingTeam] = useState(false);
   const [teamName, setTeamName] = useState("");
+
+  // Check if current user already has a team in this league
+  const userHasTeam = teams.some((t) => t.user_id === user?.id);
 
   useEffect(() => {
     if (leagueId) {
@@ -195,7 +200,7 @@ export function LeagueDashboard() {
               <h2>
                 <Users size={20} /> Teams
               </h2>
-              {!creatingTeam && (
+              {!creatingTeam && !userHasTeam && (
                 <button
                   className="btn btn-secondary btn-sm"
                   onClick={() => setCreatingTeam(true)}

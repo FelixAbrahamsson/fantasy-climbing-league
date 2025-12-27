@@ -51,12 +51,12 @@ async function fetchAPI<T>(
 
 // Leagues
 export const leaguesAPI = {
-  getAll: () => fetchAPI<League[]>("/leagues"),
+  getAll: () => fetchAPI<League[]>("/leagues/"),
 
   getById: (id: string) => fetchAPI<League>(`/leagues/${id}`),
 
   create: (data: LeagueCreate) =>
-    fetchAPI<League>("/leagues", {
+    fetchAPI<League>("/leagues/", {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -77,7 +77,7 @@ export const teamsAPI = {
     fetchAPI<TeamWithRoster>(`/teams/${teamId}`),
 
   create: (data: { name: string; league_id: string }) =>
-    fetchAPI<Team>("/teams", {
+    fetchAPI<Team>("/teams/", {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -98,7 +98,7 @@ export const teamsAPI = {
 export const climbersAPI = {
   getAll: (gender?: string) => {
     const params = gender ? `?gender=${gender}` : "";
-    return fetchAPI<Climber[]>(`/climbers${params}`);
+    return fetchAPI<Climber[]>(`/climbers/${params}`);
   },
 
   getById: (id: number) => fetchAPI<Climber>(`/climbers/${id}`),
@@ -116,7 +116,7 @@ export const eventsAPI = {
     if (filters?.gender) params.append("gender", filters.gender);
     if (filters?.status) params.append("status", filters.status);
     const queryString = params.toString();
-    return fetchAPI<Event[]>(`/events${queryString ? `?${queryString}` : ""}`);
+    return fetchAPI<Event[]>(`/events/${queryString ? `?${queryString}` : ""}`);
   },
 
   seedMockData: () =>

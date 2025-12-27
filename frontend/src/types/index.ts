@@ -14,6 +14,7 @@ export interface LeagueCreate {
   name: string;
   gender: "men" | "women";
   discipline: "boulder" | "lead";
+  event_ids?: number[];
 }
 
 export interface Climber {

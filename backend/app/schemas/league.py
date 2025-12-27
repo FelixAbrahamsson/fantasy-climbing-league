@@ -12,7 +12,9 @@ class LeagueBase(BaseModel):
 
 
 class LeagueCreate(LeagueBase):
-    pass
+    event_ids: list[int] = Field(
+        default=[], description="List of event IDs to include in the league"
+    )
 
 
 class LeagueResponse(LeagueBase):
