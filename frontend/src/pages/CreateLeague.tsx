@@ -31,8 +31,16 @@ export function CreateLeague() {
           (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
         );
         setEvents(sortedEvents);
-        // Auto-select all events by default
-        setSelectedEventIds(sortedEvents.map((e) => e.id));
+
+        // Auto-select only World Cup and World Championship events by default
+        const worldEvents = sortedEvents.filter((e) => {
+          const nameLower = e.name.toLowerCase();
+          return (
+            nameLower.includes("world") &&
+            (nameLower.includes("cup") || nameLower.includes("championship"))
+          );
+        });
+        setSelectedEventIds(worldEvents.map((e) => e.id));
       } catch (err) {
         console.error("Failed to load events:", err);
       } finally {
