@@ -275,17 +275,22 @@ export function LeagueDashboard() {
               </div>
             ) : (
               <div className="events-list">
-                {events.slice(0, 5).map((event) => (
-                  <div key={event.id} className="event-item">
-                    <div className="event-info">
-                      <span className="event-name">{event.name}</span>
-                      <span className="event-date">
-                        {new Date(event.date).toLocaleDateString()}
-                      </span>
+                {events
+                  .sort(
+                    (a, b) =>
+                      new Date(b.date).getTime() - new Date(a.date).getTime()
+                  )
+                  .map((event) => (
+                    <div key={event.id} className="event-item">
+                      <div className="event-info">
+                        <span className="event-name">{event.name}</span>
+                        <span className="event-date">
+                          {new Date(event.date).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <span className="badge badge-success">Completed</span>
                     </div>
-                    <span className="badge badge-success">Completed</span>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </section>
