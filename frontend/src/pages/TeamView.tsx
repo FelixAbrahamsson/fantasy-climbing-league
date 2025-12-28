@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Crown, Users } from "lucide-react";
-import { teamsAPI, climbersAPI } from "../services/api";
+import { teamsAPI, climbersAPI, leaguesAPI } from "../services/api";
 import type { TeamWithRoster, Climber, RosterEntry } from "../types";
 import { TransferSection } from "../components/TransferSection";
 import "./TeamView.css";
@@ -24,7 +24,11 @@ export function TeamView() {
       const teamData = await teamsAPI.getWithRoster(teamId!);
       setTeam(teamData);
 
-      const climbers = await climbersAPI.getAll();
+      // Get league to determine gender for climber filtering
+      const league = await leaguesAPI.getById(teamData.league_id);
+
+      // Load climbers filtered by league gender
+      const climbers = await climbersAPI.getAll(league.gender);
       setAvailableClimbers(climbers);
     } catch (err) {
       setError("Failed to load team data");
