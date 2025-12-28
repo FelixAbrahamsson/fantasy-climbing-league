@@ -10,6 +10,7 @@ import {
   Calendar,
   TrendingUp,
   Trash2,
+  ExternalLink,
 } from "lucide-react";
 import {
   leaguesAPI,
@@ -317,7 +318,21 @@ export function LeagueDashboard() {
                           {new Date(event.date).toLocaleDateString()}
                         </span>
                       </div>
-                      <span className="badge badge-success">Completed</span>
+                      <div className="event-actions">
+                        <a
+                          href={`https://ifsc.results.info/event/${String(
+                            event.id
+                          ).slice(0, -1)}/general/${event.discipline}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ifsc-link"
+                          title="View on IFSC"
+                        >
+                          <ExternalLink size={14} />
+                          Results
+                        </a>
+                        <span className="badge badge-success">Completed</span>
+                      </div>
                     </div>
                   ))}
               </div>

@@ -233,6 +233,30 @@
   color: var(--color-text-muted);
 }
 
+.event-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.ifsc-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.ifsc-link:hover {
+  color: var(--color-accent-primary);
+  background: rgba(255, 107, 53, 0.1);
+}
+
 .error-container {
   text-align: center;
   padding: var(--space-2xl);
