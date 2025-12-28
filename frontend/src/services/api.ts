@@ -70,6 +70,11 @@ export const leaguesAPI = {
       method: "POST",
       body: JSON.stringify({ invite_code: inviteCode }),
     }),
+
+  delete: (leagueId: string) =>
+    fetchAPI<{ message: string }>(`/leagues/${leagueId}`, {
+      method: "DELETE",
+    }),
 };
 
 // Teams

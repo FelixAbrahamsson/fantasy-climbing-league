@@ -9,6 +9,7 @@ import {
   Check,
   Calendar,
   TrendingUp,
+  Trash2,
 } from "lucide-react";
 import {
   leaguesAPI,
@@ -32,6 +33,9 @@ export function LeagueDashboard() {
   const [copied, setCopied] = useState(false);
   const [creatingTeam, setCreatingTeam] = useState(false);
   const [teamName, setTeamName] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   // Check if current user already has a team in this league
   const userHasTeam = teams.some((t) => t.user_id === user?.id);
@@ -94,6 +98,21 @@ export function LeagueDashboard() {
     }
   };
 
+  const handleDeleteLeague = async () => {
+    if (!league || deleteConfirmName !== league.name) return;
+
+    setDeleting(true);
+    try {
+      await leaguesAPI.delete(leagueId!);
+      window.location.href = "/leagues";
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete league");
+      setDeleting(false);
+    }
+  };
+
+  const isLeagueOwner = league?.admin_id === user?.id;
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -140,6 +159,16 @@ export function LeagueDashboard() {
               <button className="invite-btn" onClick={copyInviteCode}>
                 {copied ? <Check size={16} /> : <Copy size={16} />}
                 <span>{copied ? "Copied!" : league.invite_code}</span>
+              </button>
+            )}
+
+            {isLeagueOwner && (
+              <button
+                className="btn btn-danger"
+                onClick={() => setShowDeleteModal(true)}
+              >
+                <Trash2 size={16} />
+                Delete League
               </button>
             )}
           </div>
@@ -296,6 +325,53 @@ export function LeagueDashboard() {
           </section>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowDeleteModal(false)}
+        >
+          <div
+            className="modal delete-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3>Delete League</h3>
+            <p className="delete-warning">
+              This action cannot be undone. This will permanently delete the
+              league, all teams, and all associated data.
+            </p>
+            <p>
+              Type <strong>{league.name}</strong> to confirm:
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmName}
+              onChange={(e) => setDeleteConfirmName(e.target.value)}
+              placeholder="Enter league name"
+              className="delete-confirm-input"
+            />
+            <div className="modal-actions">
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmName("");
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={handleDeleteLeague}
+                disabled={deleteConfirmName !== league.name || deleting}
+              >
+                {deleting ? "Deleting..." : "Delete League"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

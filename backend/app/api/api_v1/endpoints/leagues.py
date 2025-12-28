@@ -139,3 +139,61 @@ def join_league(
     ).execute()
 
     return league
+
+
+@router.delete("/{league_id}")
+def delete_league(
+    league_id: uuid.UUID,
+    authorization: str = Header(None),
+):
+    """Delete a league. Only the league creator (admin) can delete."""
+    user_id = get_current_user_id(authorization)
+
+    # Get league and verify ownership
+    league_response = (
+        supabase.table("leagues")
+        .select("id, name, admin_id")
+        .eq("id", str(league_id))
+        .single()
+        .execute()
+    )
+
+    if not league_response.data:
+        raise HTTPException(status_code=404, detail="League not found")
+
+    league = league_response.data
+
+    if league["admin_id"] != user_id:
+        raise HTTPException(
+            status_code=403, detail="Only the league creator can delete the league"
+        )
+
+    # Delete in order (foreign key constraints):
+    # 1. Delete team_transfers for teams in this league
+    teams = (
+        supabase.table("fantasy_teams")
+        .select("id")
+        .eq("league_id", str(league_id))
+        .execute()
+    )
+    team_ids = [t["id"] for t in (teams.data or [])]
+
+    if team_ids:
+        for team_id in team_ids:
+            supabase.table("team_transfers").delete().eq("team_id", team_id).execute()
+            supabase.table("captain_history").delete().eq("team_id", team_id).execute()
+            supabase.table("team_roster").delete().eq("team_id", team_id).execute()
+
+    # 2. Delete fantasy_teams
+    supabase.table("fantasy_teams").delete().eq("league_id", str(league_id)).execute()
+
+    # 3. Delete league_events
+    supabase.table("league_events").delete().eq("league_id", str(league_id)).execute()
+
+    # 4. Delete league_members
+    supabase.table("league_members").delete().eq("league_id", str(league_id)).execute()
+
+    # 5. Delete league
+    supabase.table("leagues").delete().eq("id", str(league_id)).execute()
+
+    return {"message": f"League '{league['name']}' deleted successfully"}
