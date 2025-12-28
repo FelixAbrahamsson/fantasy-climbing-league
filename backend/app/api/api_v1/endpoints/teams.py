@@ -121,6 +121,58 @@ def get_team_with_roster(team_id: uuid.UUID):
     )
 
 
+def check_roster_locked(league_id: str) -> dict:
+    """Check if roster editing is locked for a league (first event started)."""
+    # Get events in the league
+    league_events = (
+        supabase.table("league_events")
+        .select("event_id")
+        .eq("league_id", league_id)
+        .execute()
+    )
+
+    if not league_events.data:
+        return {"locked": False, "reason": None}
+
+    event_ids = [le["event_id"] for le in league_events.data]
+
+    # Check if any event has started (completed or in_progress)
+    started_events = (
+        supabase.table("events")
+        .select("id, name, status")
+        .in_("id", event_ids)
+        .in_("status", ["completed", "in_progress"])
+        .order("date", desc=False)
+        .limit(1)
+        .execute()
+    )
+
+    if started_events.data:
+        return {
+            "locked": True,
+            "reason": f"Event '{started_events.data[0]['name']}' has started",
+        }
+
+    return {"locked": False, "reason": None}
+
+
+@router.get("/{team_id}/roster-status")
+def get_roster_lock_status(team_id: uuid.UUID):
+    """Check if a team's roster is locked (can only use transfers)."""
+    team_response = (
+        supabase.table("fantasy_teams")
+        .select("league_id")
+        .eq("id", str(team_id))
+        .single()
+        .execute()
+    )
+
+    if not team_response.data:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    return check_roster_locked(team_response.data["league_id"])
+
+
 @router.put("/{team_id}/roster", response_model=TeamWithRoster)
 def update_team_roster(
     team_id: uuid.UUID,
@@ -133,7 +185,7 @@ def update_team_roster(
     # Verify team belongs to user
     team_response = (
         supabase.table("fantasy_teams")
-        .select("*")
+        .select("*, league_id")
         .eq("id", str(team_id))
         .single()
         .execute()
@@ -146,6 +198,14 @@ def update_team_roster(
 
     if team["user_id"] != user_id:
         raise HTTPException(status_code=403, detail="You don't own this team")
+
+    # Check if roster is locked
+    lock_status = check_roster_locked(team["league_id"])
+    if lock_status["locked"]:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Roster is locked: {lock_status['reason']}. Use transfers to change your team.",
+        )
 
     # Validate roster: max 6, exactly one captain
     if len(roster_update.roster) > 6:

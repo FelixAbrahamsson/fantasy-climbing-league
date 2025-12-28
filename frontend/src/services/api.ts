@@ -117,6 +117,11 @@ export const teamsAPI = {
     fetchAPI<{ message: string }>(`/teams/${teamId}/transfer/${afterEventId}`, {
       method: "DELETE",
     }),
+
+  getRosterStatus: (teamId: string) =>
+    fetchAPI<{ locked: boolean; reason: string | null }>(
+      `/teams/${teamId}/roster-status`
+    ),
 };
 
 // Climbers

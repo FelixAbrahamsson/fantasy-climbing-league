@@ -1,0 +1,99 @@
+.team-view-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--space-lg);
+}
+
+.team-view-header {
+  margin-bottom: var(--space-xl);
+}
+
+.team-view-header .back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  margin-bottom: var(--space-md);
+  transition: color var(--transition-fast);
+}
+
+.team-view-header .back-link:hover {
+  color: var(--color-text-primary);
+}
+
+.team-view-header h1 {
+  font-size: 1.75rem;
+  margin-bottom: var(--space-xs);
+}
+
+.team-subtitle {
+  color: var(--color-text-secondary);
+}
+
+.team-view-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.current-roster {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+}
+
+.current-roster h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+  font-size: 1.125rem;
+}
+
+.roster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-md);
+}
+
+.roster-card {
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  border: 2px solid var(--color-border);
+}
+
+.roster-card.captain {
+  border-color: var(--color-accent-gold);
+  background: rgba(255, 193, 7, 0.1);
+}
+
+.roster-card-name {
+  font-weight: 500;
+  margin-bottom: var(--space-xs);
+}
+
+.captain-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--color-accent-gold);
+}
+
+.empty-roster {
+  color: var(--color-text-secondary);
+  text-align: center;
+  padding: var(--space-xl);
+}
+
+.error-banner {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-lg);
+}

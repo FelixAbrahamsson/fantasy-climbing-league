@@ -7,7 +7,7 @@ import { SignUp } from "./pages/SignUp";
 import { Leagues } from "./pages/Leagues";
 import { CreateLeague } from "./pages/CreateLeague";
 import { LeagueDashboard } from "./pages/LeagueDashboard";
-import { TeamSelection } from "./pages/TeamSelection";
+import { TeamPage } from "./pages/TeamPage";
 import { TeamBreakdown } from "./pages/TeamBreakdown";
 import { EventBreakdown } from "./pages/EventBreakdown";
 import "./index.css";
@@ -29,7 +29,7 @@ function App() {
               path="/leagues/:leagueId/events"
               element={<EventBreakdown />}
             />
-            <Route path="/teams/:teamId" element={<TeamSelection />} />
+            <Route path="/teams/:teamId" element={<TeamPage />} />
             <Route
               path="/teams/:teamId/breakdown"
               element={<TeamBreakdown />}
