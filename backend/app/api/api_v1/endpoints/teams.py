@@ -183,6 +183,8 @@ def set_captain(
     authorization: str = Header(None),
 ):
     """Set a climber as team captain."""
+    from datetime import datetime, timezone
+
     user_id = get_current_user_id(authorization)
 
     # Verify team ownership
@@ -197,12 +199,28 @@ def set_captain(
     if not team_response.data or team_response.data["user_id"] != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    # Remove captain status from current captain
+    now = datetime.now(timezone.utc).isoformat()
+
+    # Mark the old captain's history record as replaced
+    supabase.table("captain_history").update({"replaced_at": now}).eq(
+        "team_id", str(team_id)
+    ).is_("replaced_at", "null").execute()
+
+    # Insert new captain history record
+    supabase.table("captain_history").insert(
+        {
+            "team_id": str(team_id),
+            "climber_id": climber_id,
+            "set_at": now,
+        }
+    ).execute()
+
+    # Remove captain status from current captain in roster
     supabase.table("team_roster").update({"is_captain": False}).eq(
         "team_id", str(team_id)
     ).eq("is_captain", True).is_("removed_at", "null").execute()
 
-    # Set new captain
+    # Set new captain in roster
     result = (
         supabase.table("team_roster")
         .update({"is_captain": True})

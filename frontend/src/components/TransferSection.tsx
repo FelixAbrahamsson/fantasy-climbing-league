@@ -195,6 +195,39 @@ export function TransferSection({
         <p className="no-transfers">No transfer windows available</p>
       )}
 
+      {/* Change Captain */}
+      <div className="captain-change-section">
+        <h4>
+          <Crown size={14} /> Change Captain
+        </h4>
+        <div className="captain-options">
+          {roster.map((r) => {
+            const climber = getRosterClimber(r.climber_id);
+            if (!climber) return null;
+            return (
+              <button
+                key={r.climber_id}
+                className={`captain-btn ${r.is_captain ? "current" : ""}`}
+                onClick={async () => {
+                  if (!r.is_captain) {
+                    try {
+                      await teamsAPI.setCaptain(teamId, r.climber_id);
+                      onTransferComplete();
+                    } catch (err) {
+                      console.error("Failed to set captain:", err);
+                    }
+                  }
+                }}
+                disabled={r.is_captain}
+              >
+                {climber.name}
+                {r.is_captain && <Crown size={12} />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Transfer Modal */}
       {showModal && (
         <div

@@ -22,42 +22,88 @@ class LeaderboardEntry(BaseModel):
 def calculate_team_score_for_event(team_id: str, event_id: int) -> int:
     """Calculate a team's score for a specific event."""
     try:
-        # Get team roster (at the time of the event - for now just active roster)
+        # Get the event date to determine historical roster/captain
+        event = (
+            supabase.table("events")
+            .select("date")
+            .eq("id", event_id)
+            .single()
+            .execute()
+        )
+
+        if not event.data:
+            return 0
+
+        event_date = event.data["date"]
+
+        # Get team roster at event time (climbers added before event, not removed or removed after event)
         roster = (
             supabase.table("team_roster")
-            .select("climber_id, is_captain")
+            .select("climber_id")
             .eq("team_id", team_id)
-            .is_("removed_at", "null")
+            .lte("added_at", event_date)
             .execute()
         )
 
         if not roster.data:
             return 0
 
+        # Filter roster to only include those not removed before event
+        active_roster = []
+        for entry in roster.data:
+            # Re-query to check removed_at (Supabase doesn't easily do OR with NULL)
+            detail = (
+                supabase.table("team_roster")
+                .select("climber_id, removed_at")
+                .eq("team_id", team_id)
+                .eq("climber_id", entry["climber_id"])
+                .lte("added_at", event_date)
+                .execute()
+            )
+            if detail.data:
+                for d in detail.data:
+                    # Include if not removed, or removed after event
+                    if d.get("removed_at") is None or d["removed_at"] > event_date:
+                        active_roster.append(d["climber_id"])
+                        break
+
+        if not active_roster:
+            return 0
+
+        # Get captain at event time from captain_history
+        captain_id = None
+        captain_history = (
+            supabase.table("captain_history")
+            .select("climber_id")
+            .eq("team_id", team_id)
+            .lte("set_at", event_date)
+            .order("set_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+
+        if captain_history.data:
+            captain_id = captain_history.data[0]["climber_id"]
+
         total_score = 0
 
-        for entry in roster.data:
-            # Get climber's result for this event
+        for climber_id in active_roster:
             try:
                 result = (
                     supabase.table("event_results")
                     .select("rank, score")
                     .eq("event_id", event_id)
-                    .eq("climber_id", entry["climber_id"])
+                    .eq("climber_id", climber_id)
                     .execute()
                 )
 
-                # Check if climber has a result for this event
                 if result.data and len(result.data) > 0:
                     result_data = result.data[0]
-                    score = calculate_climber_score(
-                        result_data["rank"], entry["is_captain"]
-                    )
+                    is_captain = climber_id == captain_id
+                    score = calculate_climber_score(result_data["rank"], is_captain)
                     total_score += score
             except Exception as e:
-                logger.warning(
-                    f"Error fetching result for climber {entry['climber_id']}: {e}"
-                )
+                logger.warning(f"Error fetching result for climber {climber_id}: {e}")
                 continue
 
         return total_score
