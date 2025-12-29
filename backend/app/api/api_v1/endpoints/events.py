@@ -3,6 +3,7 @@ from typing import List, Optional
 from app.db.supabase import supabase
 from app.schemas.event import EventResponse
 from app.services.ifsc_data import (
+    populate_all_athletes,
     populate_all_completed_results,
     populate_event_results,
     populate_season_data,
@@ -161,5 +162,42 @@ async def sync_ifsc_all_results(
             "events": result["events"],
             "climbers": result["climbers"],
             "results": result["results"],
+        },
+    }
+
+
+@router.post("/sync-ifsc-athletes")
+async def sync_ifsc_athletes(
+    year: int = Query(default=2025, ge=2024, le=2026),
+    world_cups_only: bool = Query(default=True),
+    authorization: str = Header(None),
+):
+    """
+    Sync all athletes from event registrations for a season.
+
+    This fetches registered athletes from all events, including upcoming ones.
+    Use this to populate the climber database before events are completed.
+
+    Args:
+        year: Season year (2024, 2025, or 2026)
+        world_cups_only: If True, only sync from World Cup/Championship events
+    """
+    # TODO: Add admin check
+    result = await populate_all_athletes(year=year, world_cups_only=world_cups_only)
+
+    if result["errors"]:
+        return {
+            "message": f"Athletes for {year} synced with some errors",
+            "counts": result,
+            "errors": result["errors"][:10],  # Limit errors in response
+        }
+
+    return {
+        "message": f"Athletes for {year} synced successfully",
+        "counts": {
+            "events": result["events"],
+            "climbers": result["climbers"],
+            "men": result["men"],
+            "women": result["women"],
         },
     }

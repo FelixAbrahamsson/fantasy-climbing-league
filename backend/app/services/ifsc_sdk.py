@@ -160,6 +160,28 @@ class IFSCResultsResponse(BaseModel):
     category_rounds: list[IFSCCategoryRound] = []
 
 
+class IFSCRegistrationDcat(BaseModel):
+    """Discipline category registration status."""
+
+    id: int
+    name: str  # e.g., 'BOULDER Women', 'LEAD Men'
+    status: Optional[str] = None  # 'confirmed', 'not attending', etc.
+
+
+class IFSCRegistration(BaseModel):
+    """Athlete registration from /api/v1/events/{event_id}/registrations."""
+
+    athlete_id: int
+    firstname: str
+    lastname: str
+    name: str  # Full name in format "LASTNAME Firstname"
+    gender: int  # 0 = men, 1 = women
+    country: str
+    federation: Optional[str] = None
+    federation_id: Optional[int] = None
+    d_cats: list[IFSCRegistrationDcat] = []
+
+
 # ============================================================================
 # IFSC Client
 # ============================================================================
@@ -317,6 +339,19 @@ class IFSCClient:
         """
         data = await self._authenticated_get(f"/events/{event_id}/result/{dcat_id}")
         return IFSCResultsResponse(**data)
+
+    async def get_event_registrations(self, event_id: int) -> list[IFSCRegistration]:
+        """
+        Fetch all registered athletes for an event.
+
+        Args:
+            event_id: The IFSC event ID
+
+        Returns:
+            List of athlete registrations
+        """
+        data = await self._authenticated_get(f"/events/{event_id}/registrations")
+        return [IFSCRegistration(**reg) for reg in data]
 
 
 # ============================================================================

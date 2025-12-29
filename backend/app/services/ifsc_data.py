@@ -15,6 +15,7 @@ from app.services.ifsc_sdk import (
     IFSCClientError,
     IFSCFullEvent,
     IFSCLeague,
+    IFSCRegistration,
     IFSCResultsResponse,
     IFSCSeasonResponse,
     is_world_cup_league,
@@ -198,6 +199,118 @@ async def populate_all_completed_results(year: int = 2025) -> dict:
 
             except Exception as e:
                 error_msg = f"Error processing event {event_info.event_id}: {e}"
+                logger.error(error_msg)
+                results["errors"].append(error_msg)
+
+    except IFSCClientError as e:
+        logger.error(f"IFSC API error: {e}")
+        results["errors"].append(str(e))
+
+    return results
+
+
+async def populate_athletes_from_registrations(event_id: int) -> dict:
+    """
+    Fetch and populate athletes from event registrations.
+
+    This imports athletes who are registered for an event, even if the event
+    hasn't happened yet. This is useful for populating the climber database
+    before events are completed.
+
+    Args:
+        event_id: IFSC event ID
+
+    Returns:
+        Dictionary with counts of synced data
+    """
+    client = IFSCClient()
+    results = {"climbers": 0, "men": 0, "women": 0, "errors": []}
+
+    try:
+        registrations = await client.get_event_registrations(event_id)
+        logger.info(f"Fetched {len(registrations)} registrations for event {event_id}")
+
+        for reg in registrations:
+            # Convert gender: 0 = men, 1 = women
+            gender = "men" if reg.gender == 0 else "women"
+
+            # Build climber record
+            climber_data = {
+                "id": reg.athlete_id,
+                "name": f"{reg.firstname} {reg.lastname}".strip(),
+                "country": reg.country,
+                "gender": gender,
+                "active": True,
+            }
+
+            _upsert_climber(climber_data)
+            results["climbers"] += 1
+            if gender == "men":
+                results["men"] += 1
+            else:
+                results["women"] += 1
+
+    except IFSCClientError as e:
+        logger.error(f"IFSC API error: {e}")
+        results["errors"].append(str(e))
+    except Exception as e:
+        error_msg = f"Error fetching registrations for event {event_id}: {e}"
+        logger.error(error_msg)
+        results["errors"].append(error_msg)
+
+    return results
+
+
+async def populate_all_athletes(
+    year: int = 2025,
+    world_cups_only: bool = True,
+) -> dict:
+    """
+    Fetch and populate all athletes from event registrations for a season.
+
+    This iterates through all events in a season and imports athletes
+    from their registration lists.
+
+    Args:
+        year: Season year (2024, 2025, or 2026)
+        world_cups_only: If True, only sync from World Cup/Championship events
+
+    Returns:
+        Dictionary with counts of synced data
+    """
+    client = IFSCClient()
+    results = {"events": 0, "climbers": 0, "men": 0, "women": 0, "errors": []}
+
+    try:
+        season = await client.get_season(year)
+        logger.info(f"Fetched season {season.name} with {len(season.events)} events")
+
+        for event_info in season.events:
+            try:
+                # Filter by league if requested
+                if world_cups_only and not is_world_cup_league(
+                    event_info.league_season_id, season.leagues
+                ):
+                    continue
+
+                # Fetch registrations for this event
+                event_results = await populate_athletes_from_registrations(
+                    event_info.event_id
+                )
+
+                results["climbers"] += event_results["climbers"]
+                results["men"] += event_results["men"]
+                results["women"] += event_results["women"]
+                results["errors"].extend(event_results["errors"])
+                results["events"] += 1
+
+                logger.info(
+                    f"Synced athletes from event: {event_info.event} "
+                    f"({event_results['climbers']} athletes)"
+                )
+
+            except Exception as e:
+                error_msg = f"Error syncing event {event_info.event_id}: {e}"
                 logger.error(error_msg)
                 results["errors"].append(error_msg)
 
