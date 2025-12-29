@@ -75,6 +75,11 @@ export const leaguesAPI = {
     fetchAPI<{ message: string }>(`/leagues/${leagueId}`, {
       method: "DELETE",
     }),
+
+  getEvents: (leagueId: string, status?: string) => {
+    const params = status ? `?status=${status}` : "";
+    return fetchAPI<Event[]>(`/leagues/${leagueId}/events${params}`);
+  },
 };
 
 // Teams

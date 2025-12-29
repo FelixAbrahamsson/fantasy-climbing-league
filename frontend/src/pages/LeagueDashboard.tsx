@@ -12,12 +12,7 @@ import {
   Trash2,
   ExternalLink,
 } from "lucide-react";
-import {
-  leaguesAPI,
-  teamsAPI,
-  leaderboardAPI,
-  eventsAPI,
-} from "../services/api";
+import { leaguesAPI, teamsAPI, leaderboardAPI } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import type { League, Team, LeaderboardEntry, Event } from "../types";
 import "./LeagueDashboard.css";
@@ -54,22 +49,12 @@ export function LeagueDashboard() {
           leaguesAPI.getById(leagueId!),
           teamsAPI.getByLeague(leagueId!),
           leaderboardAPI.getByLeague(leagueId!),
-          eventsAPI.getAll({
-            discipline: undefined, // Will be filtered after we get league
-            status: "completed",
-          }),
+          leaguesAPI.getEvents(leagueId!, "completed"),
         ]);
       setLeague(leagueData);
       setTeams(teamsData);
       setLeaderboard(leaderboardData);
-      // Filter events by league's discipline and gender
-      setEvents(
-        eventsData.filter(
-          (e) =>
-            e.discipline === leagueData.discipline &&
-            e.gender === leagueData.gender
-        )
-      );
+      setEvents(eventsData);
     } catch (err) {
       setError("Failed to load league data");
     } finally {

@@ -95,6 +95,38 @@ def get_league(league_id: uuid.UUID):
     return response.data
 
 
+@router.get("/{league_id}/events")
+def get_league_events(league_id: uuid.UUID, status: str = None):
+    """Get all events that are part of a league.
+
+    Args:
+        league_id: UUID of the league
+        status: Optional filter by event status ('upcoming', 'completed')
+    """
+    # Get event IDs for this league from junction table
+    league_events = (
+        supabase.table("league_events")
+        .select("event_id")
+        .eq("league_id", str(league_id))
+        .execute()
+    )
+
+    if not league_events.data:
+        return []
+
+    event_ids = [le["event_id"] for le in league_events.data]
+
+    # Fetch the full event details
+    query = supabase.table("events").select("*").in_("id", event_ids)
+
+    if status:
+        query = query.eq("status", status)
+
+    events = query.order("date", desc=True).execute()
+
+    return events.data or []
+
+
 @router.post("/join", response_model=LeagueResponse)
 def join_league(
     join_data: LeagueJoin,
