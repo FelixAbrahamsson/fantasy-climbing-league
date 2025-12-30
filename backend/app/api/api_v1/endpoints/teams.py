@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from app.core.auth import get_current_user_id
@@ -12,6 +12,7 @@ from app.schemas.team import (
     TeamWithRoster,
 )
 from fastapi import APIRouter, Header, HTTPException
+from pydantic import TypeAdapter
 
 router = APIRouter()
 
@@ -211,21 +212,39 @@ def check_roster_locked(league_id: str) -> dict:
     event_ids = [le["event_id"] for le in league_events.data]
 
     # Check if any event has started (completed or in_progress)
-    started_events = (
+    # OR if its start date has passed
+    events_response = (
         supabase.table("events")
-        .select("id, name, status")
+        .select("id, name, status, date")
         .in_("id", event_ids)
-        .in_("status", ["completed", "in_progress"])
         .order("date", desc=False)
-        .limit(1)
         .execute()
     )
 
-    if started_events.data:
-        return {
-            "locked": True,
-            "reason": f"Event '{started_events.data[0]['name']}' has started",
-        }
+    if not events_response.data:
+        return {"locked": False, "reason": None}
+
+    now = datetime.now(timezone.utc)
+    date_adapter = TypeAdapter(datetime)
+
+    for event in events_response.data:
+        try:
+            event_date = date_adapter.validate_python(event["date"])
+        except Exception:
+            # Fallback if parsing fails for some reason
+            continue
+
+        if event["status"] in ["completed", "in_progress"]:
+            return {
+                "locked": True,
+                "reason": f"Event '{event['name']}' has started (Status: {event['status']})",
+            }
+
+        if event_date <= now:
+            return {
+                "locked": True,
+                "reason": f"Event '{event['name']}' has started (Date: {event_date.strftime('%Y-%m-%d %H:%M')})",
+            }
 
     return {"locked": False, "reason": None}
 
