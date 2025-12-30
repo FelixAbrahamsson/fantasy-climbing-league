@@ -17,7 +17,7 @@ export function Navbar() {
       <div className="navbar-container">
         <Link to="/" className="navbar-brand">
           <Mountain className="navbar-logo" />
-          <span>Fantasy Climbing</span>
+          <span className="brand-text">Fantasy Climbing</span>
         </Link>
 
         <div className="navbar-links">
@@ -25,11 +25,11 @@ export function Navbar() {
             <>
               <Link to="/leagues" className="navbar-link">
                 <Trophy size={18} />
-                My Leagues
+                <span className="link-text">My Leagues</span>
               </Link>
               <div className="navbar-user">
                 <User size={18} />
-                <span>{user.username || user.email}</span>
+                <span className="user-text">{user.username || user.email}</span>
               </div>
               <button onClick={handleSignOut} className="btn btn-ghost">
                 <LogOut size={18} />

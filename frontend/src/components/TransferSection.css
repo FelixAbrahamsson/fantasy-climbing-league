@@ -11,6 +11,7 @@
   align-items: center;
   gap: var(--space-sm);
   margin-bottom: var(--space-md);
+  flex-wrap: wrap;
 }
 
 .transfer-header span:first-of-type {
@@ -164,7 +165,20 @@
 }
 
 .transfer-modal h3 {
+  margin-bottom: var(--space-md);
+}
+
+.modal-event-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--color-bg-secondary);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
   margin-bottom: var(--space-lg);
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
 }
 
 .transfer-step {
@@ -263,4 +277,14 @@
 .tier-badge-sm:not(.tier-s):not(.tier-a):not(.tier-b) {
   background: var(--color-bg-tertiary);
   color: var(--color-text-secondary);
+}
+
+@media (max-width: 768px) {
+  .event-name-text {
+    max-width: 140px;
+  }
+  
+  .transfer-event-btn .event-date {
+    font-size: 0.7rem;
+  }
 }

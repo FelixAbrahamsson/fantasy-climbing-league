@@ -207,6 +207,7 @@ export function TransferSection({
 
   const availableEvents = getAvailableTransferEvents();
   const pendingTransfers = getPendingTransfers();
+  const selectedEvent = events.find((e) => e.id === selectedEventId);
 
   if (loading) {
     return <div className="transfer-section-loading">Loading transfers...</div>;
@@ -275,7 +276,12 @@ export function TransferSection({
           onClick={() => setShowModal(false)}
         >
           <div className="transfer-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Make Transfer</h3>
+            {selectedEvent && (
+              <div className="modal-event-header">
+                <Calendar size={16} />
+                <span>After {selectedEvent.name}</span>
+              </div>
+            )}
 
             {error && <div className="error-message">{error}</div>}
 

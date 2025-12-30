@@ -24,6 +24,7 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: var(--space-lg);
+  flex-wrap: wrap;
 }
 
 .league-title-row h1 {

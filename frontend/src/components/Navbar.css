@@ -67,3 +67,24 @@
   color: var(--color-text-secondary);
   font-size: 0.875rem;
 }
+
+@media (max-width: 768px) {
+  .navbar-container {
+    padding: var(--space-md);
+  }
+
+  .navbar-links {
+    gap: var(--space-sm);
+  }
+
+  .navbar-link,
+  .navbar-user {
+    padding: var(--space-sm);
+  }
+
+  .brand-text,
+  .link-text,
+  .user-text {
+    display: none;
+  }
+}
