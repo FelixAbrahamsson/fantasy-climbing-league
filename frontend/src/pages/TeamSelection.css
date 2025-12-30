@@ -76,19 +76,26 @@
   display: flex;
   align-items: center;
   gap: var(--space-md);
+  flex: 1;
+  min-width: 0;
 }
 
 .climber-flag {
   font-size: 1.5rem;
+  flex-shrink: 0;
 }
 
 .climber-info > div {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .climber-name {
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .climber-country {
@@ -178,8 +185,35 @@
 }
 
 @media (max-width: 768px) {
+  /* Reduce global container padding for this page on mobile */
+  .team-selection .container {
+    padding: 0 var(--space-md);
+  }
+
   .selection-grid {
     grid-template-columns: 1fr;
+    gap: var(--space-md);
+  }
+
+  .roster-section,
+  .climbers-section {
+    padding: var(--space-md);
+    min-width: 0;
+    width: 100%;
+  }
+
+  .roster-item,
+  .climber-item {
+    padding: var(--space-sm);
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Reduce button padding on mobile */
+  .captain-btn,
+  .remove-btn,
+  .add-btn {
+    padding: var(--space-xs) var(--space-sm);
   }
 }
 
