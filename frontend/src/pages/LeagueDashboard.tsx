@@ -191,11 +191,16 @@ export function LeagueDashboard() {
               </div>
             ) : (
               <div className="leaderboard-list">
+                <div className="leaderboard-header-row">
+                  <span className="rank-head">Rank</span>
+                  <span className="team-head">Team</span>
+                  <span className="score-head">Score</span>
+                </div>
                 {leaderboard.map((entry, index) => (
                   <Link
                     to={`/teams/${entry.team_id}/breakdown`}
                     key={entry.team_id}
-                    className={`leaderboard-entry ${
+                    className={`leaderboard-item ${
                       index < 3 ? `top-${index + 1}` : ""
                     }`}
                   >
