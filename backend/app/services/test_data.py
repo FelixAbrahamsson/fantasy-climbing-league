@@ -286,21 +286,6 @@ async def add_results_to_event(event_id: int) -> dict:
             ).execute()
             results["results"] += 1
 
-            # Upsert ranking (mock season ranking using event rank)
-            # Need discipline and gender from target_dcat (which we have)
-            ranking_data = {
-                "climber_id": athlete.athlete_id,
-                "discipline": parse_discipline(target_dcat.discipline_kind),
-                "gender": gender,
-                "season": datetime.now().year,  # Current year
-                "rank": athlete.rank,
-                "score": get_points_for_rank(athlete.rank),
-            }
-            supabase.table("athlete_rankings").upsert(
-                ranking_data,
-                on_conflict="climber_id,discipline,gender,season",
-            ).execute()
-
         # Mark event as completed
         supabase.table("events").update({"status": "completed"}).eq(
             "id", event_id
