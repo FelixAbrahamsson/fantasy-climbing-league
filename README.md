@@ -101,6 +101,28 @@ A fantasy sports web application for IFSC World Cup climbing competitions. Creat
    curl -X POST http://localhost:8000/api/v1/events/seed-mock-data
    ```
 
+## Test Data System (Development)
+
+We provide endpoints to simulate a full season using shifted dates.
+
+1.  **Clear existing data**:
+
+    ```bash
+    curl -X DELETE "http://localhost:8000/api/v1/events/clear-test-data"
+    ```
+
+2.  **Initialize test season** (1 past event, others future):
+
+    ```bash
+    curl -X POST "http://localhost:8000/api/v1/events/setup-test-season?year=2025&num_past_events=1"
+    ```
+
+3.  **Simulate results** for an upcoming event:
+    ```bash
+    # Replace {event_id} with actual ID
+    curl -X POST "http://localhost:8000/api/v1/events/{event_id}/add-results"
+    ```
+
 ## API Documentation
 
 Once the backend is running, visit:
