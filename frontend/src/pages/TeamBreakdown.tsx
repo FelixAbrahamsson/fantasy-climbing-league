@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Crown, Calendar, Trophy, ChevronRight } from "lucide-react";
 import { teamsAPI } from "../services/api";
 import type { TeamEventBreakdown } from "../types";
+import { getFlagEmoji } from "../utils/countryFlags";
 import "./TeamBreakdown.css";
 
 export function TeamBreakdown() {
@@ -218,19 +219,4 @@ function getShortEventName(fullName: string): string {
     return match[1];
   }
   return fullName.slice(0, 20) + (fullName.length > 20 ? "..." : "");
-}
-
-function getFlagEmoji(countryCode: string | null): string {
-  if (!countryCode) return "🏳️";
-
-  const codePoints = countryCode
-    .toUpperCase()
-    .split("")
-    .map((char) => 127397 + char.charCodeAt(0));
-
-  try {
-    return String.fromCodePoint(...codePoints);
-  } catch {
-    return "🏳️";
-  }
 }

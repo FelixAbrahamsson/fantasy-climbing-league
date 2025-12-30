@@ -10,6 +10,7 @@ import {
 import type { RankingEntry } from "../services/api";
 import type { TeamWithRoster, Climber, RosterEntry, League } from "../types";
 import { TransferSection } from "../components/TransferSection";
+import { getFlagEmoji } from "../utils/countryFlags";
 import "./TeamView.css";
 
 export function TeamView() {
@@ -146,19 +147,4 @@ export function TeamView() {
       </div>
     </div>
   );
-}
-
-function getFlagEmoji(countryCode: string | null): string {
-  if (!countryCode) return "🏳️";
-
-  const codePoints = countryCode
-    .toUpperCase()
-    .split("")
-    .map((char) => 127397 + char.charCodeAt(0));
-
-  try {
-    return String.fromCodePoint(...codePoints);
-  } catch {
-    return "🏳️";
-  }
 }

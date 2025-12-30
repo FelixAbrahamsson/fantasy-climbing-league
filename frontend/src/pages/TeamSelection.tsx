@@ -9,6 +9,7 @@ import {
 } from "../services/api";
 import type { RankingEntry } from "../services/api";
 import type { TeamWithRoster, Climber, RosterEntry, League } from "../types";
+import { getFlagEmoji } from "../utils/countryFlags";
 import "./TeamSelection.css";
 
 export function TeamSelection() {
@@ -366,20 +367,4 @@ export function TeamSelection() {
       </div>
     </div>
   );
-}
-
-// Helper function to get flag emoji from country code
-function getFlagEmoji(countryCode: string | null): string {
-  if (!countryCode) return "🏳️";
-
-  const codePoints = countryCode
-    .toUpperCase()
-    .split("")
-    .map((char) => 127397 + char.charCodeAt(0));
-
-  try {
-    return String.fromCodePoint(...codePoints);
-  } catch {
-    return "🏳️";
-  }
 }
