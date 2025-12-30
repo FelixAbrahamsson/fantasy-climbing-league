@@ -201,3 +201,102 @@ async def sync_ifsc_athletes(
             "women": result["women"],
         },
     }
+
+
+# ============================================================================
+# Test Data Endpoints (Development Only)
+# ============================================================================
+
+
+@router.post("/setup-test-season")
+async def setup_test_season_endpoint(
+    year: int = Query(default=2025, ge=2024, le=2026),
+    num_past_events: int = Query(default=1, ge=0, le=10),
+    days_between_events: int = Query(default=7, ge=1, le=30),
+):
+    """
+    Set up a test season with shifted dates.
+
+    Uses real IFSC data but shifts dates so:
+    - First N events are in the past (with results)
+    - Remaining events are in the future (no results)
+
+    This is for development/testing only.
+    """
+    from app.services.test_data import setup_test_season
+
+    result = await setup_test_season(
+        year=year,
+        num_past_events=num_past_events,
+        days_between_events=days_between_events,
+    )
+
+    if result["errors"]:
+        return {
+            "message": "Test season set up with some errors",
+            "counts": result,
+            "errors": result["errors"][:10],
+        }
+
+    return {
+        "message": f"Test season set up successfully",
+        "counts": {
+            "events": result["events"],
+            "past_events": result["past_events"],
+            "future_events": result["future_events"],
+            "climbers": result["climbers"],
+            "results": result["results"],
+        },
+    }
+
+
+@router.post("/{event_id}/add-results")
+async def add_results_to_event_endpoint(event_id: int):
+    """
+    Add real IFSC results to a specific event.
+
+    This fetches actual results from IFSC and adds them to the event,
+    simulating the completion of an event. Use this to test:
+    - Leaderboard updates
+    - Score calculations
+    - Transfer availability
+
+    This is for development/testing only.
+    """
+    from app.services.test_data import add_results_to_event
+
+    result = await add_results_to_event(event_id)
+
+    if result["errors"]:
+        raise HTTPException(status_code=400, detail=result["errors"][0])
+
+    return {
+        "message": f"Results added to event {event_id}",
+        "counts": {
+            "climbers": result["climbers"],
+            "results": result["results"],
+        },
+    }
+
+
+@router.delete("/clear-test-data")
+def clear_test_data_endpoint():
+    """
+    Clear all test data from the database.
+
+    WARNING: This deletes ALL data including:
+    - Events and results
+    - Climbers
+    - Leagues and teams
+    - Transfers
+
+    This is for development/testing only.
+    """
+    from app.services.test_data import clear_all_data
+
+    result = clear_all_data()
+
+    return {
+        "message": "All test data cleared",
+        "counts": result,
+    }
