@@ -77,8 +77,26 @@ def get_leagues(authorization: str = Header(None)):
     league_ids = [m["league_id"] for m in member_response.data]
 
     response = supabase.table("leagues").select("*").in_("id", league_ids).execute()
+    leagues = response.data or []
 
-    return response.data or []
+    # Get member counts (number of teams) for each league
+    counts_response = (
+        supabase.table("fantasy_teams")
+        .select("league_id")
+        .in_("league_id", league_ids)
+        .execute()
+    )
+
+    counts_data = counts_response.data or []
+    league_counts = {}
+    for item in counts_data:
+        lid = item["league_id"]
+        league_counts[lid] = league_counts.get(lid, 0) + 1
+
+    for league in leagues:
+        league["member_count"] = league_counts.get(league["id"], 0)
+
+    return leagues
 
 
 @router.get("/{league_id}", response_model=LeagueResponse)
@@ -95,7 +113,20 @@ def get_league(league_id: uuid.UUID):
     if not response.data:
         raise HTTPException(status_code=404, detail="League not found")
 
-    return response.data
+    league = response.data
+
+    # Get member count
+    count_response = (
+        supabase.table("fantasy_teams")
+        .select("id", count="exact")
+        .eq("league_id", str(league_id))
+        .execute()
+    )
+    league["member_count"] = (
+        count_response.count if count_response.count is not None else 0
+    )
+
+    return league
 
 
 @router.get("/{league_id}/events")

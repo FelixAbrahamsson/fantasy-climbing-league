@@ -24,6 +24,7 @@ export interface League {
   team_size: number;
   tier_config: { tiers: TierConfig[] };
   captain_multiplier: number;
+  member_count?: number;
 }
 
 export interface LeagueCreate {

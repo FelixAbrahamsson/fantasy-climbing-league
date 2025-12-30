@@ -73,6 +73,7 @@ class LeagueResponse(LeagueBase):
     team_size: int = 6
     tier_config: TierConfigWrapper = DEFAULT_TIER_CONFIG_WRAPPER
     captain_multiplier: float = 1.2
+    member_count: int = 0
 
     model_config = {"from_attributes": True}
 

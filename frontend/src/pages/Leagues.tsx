@@ -127,7 +127,7 @@ export function Leagues() {
                 <div className="league-card-stats">
                   <div className="stat">
                     <Users size={16} />
-                    <span>0 members</span>
+                    <span>{league.member_count ?? 0} members</span>
                   </div>
                 </div>
 
