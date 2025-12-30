@@ -468,3 +468,132 @@
   cursor: not-allowed;
 }
 
+/* how it works link */
+.how-it-works-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.how-it-works-link:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+}
+
+/* Info Modal */
+.info-modal {
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.info-modal-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+  color: var(--color-accent-primary);
+}
+
+.info-modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.info-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  margin-bottom: var(--space-xl);
+}
+
+.info-section h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  font-size: 1.125rem;
+  color: var(--color-text-primary);
+}
+
+.info-section h3 svg {
+  color: var(--color-accent-primary);
+}
+
+.info-section p {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.info-section ul {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-md) 0;
+}
+
+.info-section li {
+  position: relative;
+  padding-left: 1.5rem;
+  margin-bottom: var(--space-xs);
+  color: var(--color-text-secondary);
+}
+
+.info-section li::before {
+  content: "•";
+  position: absolute;
+  left: 0.5rem;
+  color: var(--color-accent-primary);
+}
+
+.tier-list li {
+  background: var(--color-bg-secondary);
+  padding: var(--space-xs) var(--space-md);
+  padding-left: 2rem;
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+}
+
+.scoring-preview {
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.scoring-preview h4 {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-sm);
+}
+
+.mini-scoring-table {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-sm);
+}
+
+.mini-row {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.875rem;
+}
+
+.mini-row.muted {
+  opacity: 0.6;
+}
+
+.mini-row strong {
+  color: var(--color-accent-gold);
+}
+

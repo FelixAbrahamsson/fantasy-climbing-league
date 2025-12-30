@@ -12,8 +12,19 @@ import {
   TrendingUp,
   Trash2,
   ExternalLink,
+  HelpCircle,
+  Info,
+  Shield,
+  Zap,
+  Users,
 } from "lucide-react";
-import { leaguesAPI, teamsAPI, leaderboardAPI } from "../services/api";
+import {
+  leaguesAPI,
+  teamsAPI,
+  leaderboardAPI,
+  scoringAPI,
+} from "../services/api";
+import type { ScoringConfig } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import type { League, Team, LeaderboardEntry, Event } from "../types";
 import "./LeagueDashboard.css";
@@ -33,6 +44,8 @@ export function LeagueDashboard() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
+  const [scoring, setScoring] = useState<ScoringConfig | null>(null);
 
   // Check if current user already has a team in this league
   const userHasTeam = teams.some((t) => t.user_id === user?.id);
@@ -56,6 +69,10 @@ export function LeagueDashboard() {
       setTeams(teamsData);
       setLeaderboard(leaderboardData);
       setEvents(eventsData);
+
+      // Load scoring config for the info modal
+      const scoringData = await scoringAPI.getConfig();
+      setScoring(scoringData);
     } catch (err) {
       setError("Failed to load league data");
     } finally {
@@ -145,6 +162,13 @@ export function LeagueDashboard() {
                 <span className={`badge badge-${league.gender}`}>
                   {league.gender}
                 </span>
+                <button
+                  className="how-it-works-link"
+                  onClick={() => setShowInfo(true)}
+                >
+                  <Info size={14} />
+                  <span>How to Play</span>
+                </button>
               </div>
             </div>
 
@@ -387,6 +411,122 @@ export function LeagueDashboard() {
                 disabled={deleteConfirmName !== league.name || deleting}
               >
                 {deleting ? "Deleting..." : "Delete League"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Info Modal */}
+      {showInfo && (
+        <div className="modal-overlay" onClick={() => setShowInfo(false)}>
+          <div
+            className="modal info-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="info-modal-header">
+              <HelpCircle size={24} className="info-icon" />
+              <h2>How to Play: {league.name}</h2>
+            </div>
+
+            <div className="info-modal-content">
+              <div className="info-section">
+                <h3>
+                  <Users size={18} /> Building Your Team
+                </h3>
+                <p>
+                  Select <strong>{league.team_size}</strong> climbers to form
+                  your roster. You must stay within the{" "}
+                  <strong>tier limits</strong>:
+                </p>
+                <ul className="tier-list">
+                  {league.tier_config.tiers.map((tier) => (
+                    <li key={tier.name}>
+                      <strong>Tier {tier.name}:</strong> Runners ranked up to #
+                      {tier.max_rank || "Any"}.
+                      {tier.max_per_team
+                        ? ` Max ${tier.max_per_team} per team.`
+                        : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="info-section">
+                <h3>
+                  <Zap size={18} /> Scoring Points
+                </h3>
+                <p>
+                  Teams gain points based on the real-world performance of their
+                  climbers in IFSC events.
+                </p>
+                <ul>
+                  <li>
+                    <strong>Base Points:</strong> Earned based on final event
+                    rank.
+                  </li>
+                  <li>
+                    <strong>Captain Bonus:</strong> Your chosen captain earns{" "}
+                    <strong>
+                      {Math.round((league.captain_multiplier || 1.2) * 100) /
+                        100}
+                      x
+                    </strong>{" "}
+                    bonus points!
+                  </li>
+                  <li>
+                    <strong>Multiple Disciplines:</strong> If an athlete
+                    competes in multiple disciplines at one event, you get
+                    points for all of them.
+                  </li>
+                </ul>
+
+                {scoring && (
+                  <div className="scoring-preview">
+                    <h4>Example Points:</h4>
+                    <div className="mini-scoring-table">
+                      {scoring.points_table.slice(0, 5).map((p) => (
+                        <div key={p.rank} className="mini-row">
+                          <span>Rank #{p.rank}</span>
+                          <strong>{p.points} pts</strong>
+                        </div>
+                      ))}
+                      <div className="mini-row muted">
+                        <span>Rank #30+</span>
+                        <strong>{scoring.min_points} pts</strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="info-section">
+                <h3>
+                  <Shield size={18} /> Transfers & Windows
+                </h3>
+                <ul>
+                  <li>
+                    <strong>Transfer Limit:</strong> You can make up to{" "}
+                    <strong>{league.transfers_per_event}</strong> transfers
+                    after each event.
+                  </li>
+                  <li>
+                    <strong>Roster Locks:</strong> Roster is locked 30 minutes
+                    before the start of each event.
+                  </li>
+                  <li>
+                    <strong>Reverting:</strong> You can revert transfers as long
+                    as the next event hasn't started.
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowInfo(false)}
+              >
+                Got it!
               </button>
             </div>
           </div>
