@@ -1,15 +1,23 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Crown, Users } from "lucide-react";
-import { teamsAPI, climbersAPI, leaguesAPI } from "../services/api";
-import type { TeamWithRoster, Climber, RosterEntry } from "../types";
+import {
+  teamsAPI,
+  climbersAPI,
+  leaguesAPI,
+  rankingsAPI,
+} from "../services/api";
+import type { RankingEntry } from "../services/api";
+import type { TeamWithRoster, Climber, RosterEntry, League } from "../types";
 import { TransferSection } from "../components/TransferSection";
 import "./TeamView.css";
 
 export function TeamView() {
   const { teamId } = useParams<{ teamId: string }>();
   const [team, setTeam] = useState<TeamWithRoster | null>(null);
+  const [league, setLeague] = useState<League | null>(null);
   const [availableClimbers, setAvailableClimbers] = useState<Climber[]>([]);
+  const [rankings, setRankings] = useState<Map<number, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -25,11 +33,30 @@ export function TeamView() {
       setTeam(teamData);
 
       // Get league to determine gender for climber filtering
-      const league = await leaguesAPI.getById(teamData.league_id);
+      const leagueData = await leaguesAPI.getById(teamData.league_id);
+      setLeague(leagueData);
 
       // Load climbers filtered by league gender
-      const climbers = await climbersAPI.getAll(league.gender);
+      const climbers = await climbersAPI.getAll(leagueData.gender);
       setAvailableClimbers(climbers);
+
+      // Load rankings for this season
+      const currentSeason = new Date().getFullYear();
+      try {
+        const rankingsData = await rankingsAPI.get(
+          leagueData.discipline,
+          leagueData.gender,
+          currentSeason,
+          500
+        );
+        const rankingsMap = new Map<number, number>();
+        rankingsData.forEach((r: RankingEntry) =>
+          rankingsMap.set(r.climber_id, r.rank)
+        );
+        setRankings(rankingsMap);
+      } catch {
+        console.warn("Could not load rankings");
+      }
     } catch (err) {
       setError("Failed to load team data");
     } finally {
@@ -112,6 +139,8 @@ export function TeamView() {
           teamId={teamId!}
           roster={selectedRoster}
           availableClimbers={availableClimbers}
+          rankings={rankings}
+          tierConfig={league?.tier_config?.tiers ?? []}
           onTransferComplete={loadData}
         />
       </div>

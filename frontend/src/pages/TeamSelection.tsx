@@ -108,6 +108,25 @@ export function TeamSelection() {
     return tierCounts[tier] >= tierCfg.max_per_team;
   };
 
+  // Sort climbers by ranking (ranked athletes first, then unranked alphabetically)
+  const sortedClimbers = useMemo(() => {
+    return [...availableClimbers].sort((a, b) => {
+      const rankA = rankings.get(a.id);
+      const rankB = rankings.get(b.id);
+
+      // Both have rankings - sort by rank
+      if (rankA !== undefined && rankB !== undefined) {
+        return rankA - rankB;
+      }
+      // Only A has ranking - A comes first
+      if (rankA !== undefined) return -1;
+      // Only B has ranking - B comes first
+      if (rankB !== undefined) return 1;
+      // Neither has ranking - sort alphabetically
+      return a.name.localeCompare(b.name);
+    });
+  }, [availableClimbers, rankings]);
+
   const isSelected = (climberId: number) =>
     selectedRoster.some((r) => r.climber_id === climberId);
 
@@ -288,7 +307,7 @@ export function TeamSelection() {
             <h2>Available Climbers</h2>
 
             <div className="climbers-list">
-              {availableClimbers.map((climber) => (
+              {sortedClimbers.map((climber) => (
                 <div
                   key={climber.id}
                   className={`climber-item ${

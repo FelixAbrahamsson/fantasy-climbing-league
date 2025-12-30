@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ArrowRightLeft, Undo2, Crown, Calendar } from "lucide-react";
 import { teamsAPI, eventsAPI } from "../services/api";
-import type { Transfer, Climber, Event } from "../types";
+import type { Transfer, Climber, Event, TierConfig } from "../types";
 import "./TransferSection.css";
 
 interface TransferSectionProps {
   teamId: string;
   roster: { climber_id: number; is_captain: boolean }[];
   availableClimbers: Climber[];
+  rankings: Map<number, number>;
+  tierConfig: TierConfig[];
   onTransferComplete: () => void;
 }
 
@@ -15,6 +17,8 @@ export function TransferSection({
   teamId,
   roster,
   availableClimbers,
+  rankings,
+  tierConfig,
   onTransferComplete,
 }: TransferSectionProps) {
   const [transfers, setTransfers] = useState<Transfer[]>([]);
@@ -130,10 +134,35 @@ export function TransferSection({
     });
   };
 
+  // Tier helper
+  const getAthleTier = (climberId: number): string => {
+    const rank = rankings.get(climberId);
+    if (rank === undefined || tierConfig.length === 0) {
+      return tierConfig[tierConfig.length - 1]?.name ?? "?";
+    }
+    for (const tier of tierConfig) {
+      if (tier.max_rank === null || rank <= tier.max_rank) {
+        return tier.name;
+      }
+    }
+    return tierConfig[tierConfig.length - 1]?.name ?? "?";
+  };
+
   const rosterClimberIds = roster.map((r) => r.climber_id);
-  const notInRoster = availableClimbers.filter(
-    (c) => !rosterClimberIds.includes(c.id)
-  );
+
+  // Sort athletes not in roster by ranking
+  const sortedNotInRoster = useMemo(() => {
+    return availableClimbers
+      .filter((c) => !rosterClimberIds.includes(c.id))
+      .sort((a, b) => {
+        const rankA = rankings.get(a.id);
+        const rankB = rankings.get(b.id);
+        if (rankA !== undefined && rankB !== undefined) return rankA - rankB;
+        if (rankA !== undefined) return -1;
+        if (rankB !== undefined) return 1;
+        return a.name.localeCompare(b.name);
+      });
+  }, [availableClimbers, rosterClimberIds, rankings]);
 
   const availableEvents = getAvailableTransferEvents();
   const pendingTransfers = getPendingTransfers();
@@ -268,7 +297,7 @@ export function TransferSection({
               <div className="transfer-step">
                 <label>Select replacement player:</label>
                 <div className="player-grid scrollable">
-                  {notInRoster.map((climber) => (
+                  {sortedNotInRoster.map((climber) => (
                     <button
                       key={climber.id}
                       className={`player-btn ${
@@ -276,6 +305,13 @@ export function TransferSection({
                       }`}
                       onClick={() => setClimberInId(climber.id)}
                     >
+                      <span
+                        className={`tier-badge-sm tier-${getAthleTier(
+                          climber.id
+                        ).toLowerCase()}`}
+                      >
+                        {getAthleTier(climber.id)}
+                      </span>
                       {climber.name}
                     </button>
                   ))}
