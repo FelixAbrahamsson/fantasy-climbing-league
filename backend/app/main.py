@@ -2,6 +2,7 @@ from app.api.api_v1.api import api_router
 from app.core.config import settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -23,7 +24,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to Fantasy Climbing League API"}
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")
