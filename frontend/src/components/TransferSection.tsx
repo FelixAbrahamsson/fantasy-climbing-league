@@ -66,11 +66,14 @@ export function TransferSection({
 
     const latestCompletedEvent = completedEvents[completedEvents.length - 1];
 
-    // 2. Check if a transfer already exists for this event
-    const hasTransferForLatest = transfers.some(
+    // 2. Check how many transfers have been made for this event
+    const transfersUsed = transfers.filter(
       (t) => t.after_event_id === latestCompletedEvent.id && !t.reverted_at
-    );
-    if (hasTransferForLatest) return [];
+    ).length;
+
+    const transfersAllowed = league?.transfers_per_event ?? 1;
+
+    if (transfersUsed >= transfersAllowed) return [];
 
     // 3. Check if the NEXT event has already started
     const latestIndex = events.findIndex(
@@ -209,6 +212,16 @@ export function TransferSection({
   const pendingTransfers = getPendingTransfers();
   const selectedEvent = events.find((e) => e.id === selectedEventId);
 
+  const pendingByEvent = useMemo(() => {
+    const groups = new Map<number, Transfer[]>();
+    pendingTransfers.forEach((t) => {
+      const group = groups.get(t.after_event_id) || [];
+      group.push(t);
+      groups.set(t.after_event_id, group);
+    });
+    return Array.from(groups.entries());
+  }, [pendingTransfers]);
+
   if (loading) {
     return <div className="transfer-section-loading">Loading transfers...</div>;
   }
@@ -226,26 +239,36 @@ export function TransferSection({
       </div>
 
       {/* Pending Transfers */}
-      {pendingTransfers.length > 0 && (
+      {pendingByEvent.length > 0 && (
         <div className="pending-transfers">
           <h4>Pending Transfers</h4>
-          {pendingTransfers.map((transfer) => (
-            <div key={transfer.id} className="pending-transfer">
-              <div className="transfer-info">
-                <span className="out">{transfer.climber_out_name}</span>
-                <ArrowRightLeft size={14} />
-                <span className="in">{transfer.climber_in_name}</span>
+          {pendingByEvent.map(([eventId, eventTransfers]) => {
+            const event = events.find((e) => e.id === eventId);
+            return (
+              <div key={eventId} className="pending-group">
+                <div className="pending-group-header">
+                  <span>After {event?.name || "Event"}</span>
+                  <button
+                    className="btn-undo"
+                    onClick={() => handleRevertTransfer(eventId)}
+                    title="Undo all transfers for this event"
+                  >
+                    <Undo2 size={14} />
+                    Undo All
+                  </button>
+                </div>
+                {eventTransfers.map((transfer) => (
+                  <div key={transfer.id} className="pending-transfer">
+                    <div className="transfer-info">
+                      <span className="out">{transfer.climber_out_name}</span>
+                      <ArrowRightLeft size={14} />
+                      <span className="in">{transfer.climber_in_name}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <button
-                className="btn-undo"
-                onClick={() => handleRevertTransfer(transfer.after_event_id)}
-                title="Undo transfer"
-              >
-                <Undo2 size={14} />
-                Undo
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -253,17 +276,28 @@ export function TransferSection({
       {availableEvents.length > 0 ? (
         <div className="available-transfers">
           <h4>Make a Transfer</h4>
-          {availableEvents.map((event) => (
-            <button
-              key={event.id}
-              className="transfer-event-btn"
-              onClick={() => handleOpenModal(event.id)}
-            >
-              <Calendar size={14} />
-              <span className="event-name-text">After {event.name}</span>
-              <span className="event-date">{formatDate(event.date)}</span>
-            </button>
-          ))}
+          {availableEvents.map((event) => {
+            const transfersUsed = transfers.filter(
+              (t) => t.after_event_id === event.id && !t.reverted_at
+            ).length;
+            const transfersAllowed = league?.transfers_per_event ?? 1;
+
+            return (
+              <div key={event.id} className="transfer-window">
+                <button
+                  className="transfer-event-btn"
+                  onClick={() => handleOpenModal(event.id)}
+                >
+                  <Calendar size={14} />
+                  <span className="event-name-text">After {event.name}</span>
+                  <span className="event-date">{formatDate(event.date)}</span>
+                </button>
+                <div className="transfer-usage">
+                  {transfersUsed} / {transfersAllowed} transfers used
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <p className="no-transfers">No transfer windows available</p>

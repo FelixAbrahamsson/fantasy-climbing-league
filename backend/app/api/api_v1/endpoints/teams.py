@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from app.core.auth import get_current_user_id
@@ -324,8 +324,6 @@ def update_team_roster(
         )
 
     # Mark all current roster entries as removed
-    from datetime import datetime, timezone
-
     supabase.table("team_roster").update(
         {"removed_at": datetime.now(timezone.utc).isoformat()}
     ).eq("team_id", str(team_id)).is_("removed_at", "null").execute()
@@ -367,8 +365,6 @@ def set_captain(
     authorization: str = Header(None),
 ):
     """Set a climber as team captain."""
-    from datetime import datetime, timezone
-
     user_id = get_current_user_id(authorization)
 
     # Verify team ownership and get league_id
@@ -863,7 +859,6 @@ def get_league_event_breakdown(league_id: uuid.UUID):
 # Transfer Endpoints
 # =============================================================================
 
-from datetime import datetime, timezone
 
 from app.schemas.transfer import TransferCreate, TransferResponse
 
@@ -1049,7 +1044,6 @@ def create_transfer(
     # Perform the transfer
     # Use the event date + 1 second as the history timestamp.
     # This ensures the transfer is strictly "after" the event, making it robust against shifted system time.
-    from datetime import timedelta
 
     event_time = TypeAdapter(datetime).validate_python(event["date"])
     history_ts = (event_time + timedelta(seconds=1)).isoformat()
