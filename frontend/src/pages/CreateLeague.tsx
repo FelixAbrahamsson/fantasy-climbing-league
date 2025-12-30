@@ -27,6 +27,7 @@ export function CreateLeague() {
   const [teamSize, setTeamSize] = useState(6);
   const [tierConfig, setTierConfig] =
     useState<TierConfig[]>(DEFAULT_TIER_CONFIG);
+  const [captainMultiplier, setCaptainMultiplier] = useState(1.2);
   const navigate = useNavigate();
 
   // Fetch events when gender or discipline changes
@@ -98,6 +99,7 @@ export function CreateLeague() {
         transfers_per_event: transfersPerEvent,
         team_size: teamSize,
         tier_config: tierConfig,
+        captain_multiplier: captainMultiplier,
       });
       navigate(`/leagues/${league.id}`);
     } catch (err) {
@@ -259,6 +261,45 @@ export function CreateLeague() {
                 </div>
                 <p className="input-description">
                   Number of athletes each player can select for their team
+                </p>
+              </div>
+
+              {/* Captain Multiplier */}
+              <div className="input-group">
+                <label>
+                  👑 Captain Bonus
+                  <span className="input-hint">
+                    (
+                    {captainMultiplier === 1
+                      ? "No bonus"
+                      : captainMultiplier === 2
+                      ? "2x points"
+                      : `${Math.round((captainMultiplier - 1) * 100)}% bonus`}
+                    )
+                  </span>
+                </label>
+                <div className="slider-container">
+                  <input
+                    type="range"
+                    min="1"
+                    max="3"
+                    step="0.1"
+                    value={captainMultiplier}
+                    onChange={(e) =>
+                      setCaptainMultiplier(Number(e.target.value))
+                    }
+                    className="slider"
+                  />
+                  <div className="slider-labels">
+                    <span>1x</span>
+                    <span>1.5x</span>
+                    <span>2x</span>
+                    <span>2.5x</span>
+                    <span>3x</span>
+                  </div>
+                </div>
+                <p className="input-description">
+                  Point multiplier for your team captain's scores
                 </p>
               </div>
             </div>

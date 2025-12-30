@@ -190,7 +190,7 @@ export function TeamBreakdown() {
                             {athlete.total_points}
                           </span>
                           {athlete.is_captain && athlete.total_points > 0 && (
-                            <span className="captain-bonus">2x</span>
+                            <span className="captain-bonus">👑</span>
                           )}
                         </td>
                       </tr>

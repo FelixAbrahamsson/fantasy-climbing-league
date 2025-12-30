@@ -56,6 +56,12 @@ class LeagueCreate(LeagueBase):
         max_length=6,
         description="Tier configuration for athlete selection",
     )
+    captain_multiplier: float = Field(
+        default=1.2,
+        ge=1.0,
+        le=3.0,
+        description="Point multiplier for team captain (1.0 = no bonus, 2.0 = double)",
+    )
 
 
 class LeagueResponse(LeagueBase):
@@ -66,6 +72,7 @@ class LeagueResponse(LeagueBase):
     transfers_per_event: int = 1
     team_size: int = 6
     tier_config: TierConfigWrapper = DEFAULT_TIER_CONFIG_WRAPPER
+    captain_multiplier: float = 1.2
 
     model_config = {"from_attributes": True}
 

@@ -23,6 +23,7 @@ export interface League {
   transfers_per_event: number;
   team_size: number;
   tier_config: { tiers: TierConfig[] };
+  captain_multiplier: number;
 }
 
 export interface LeagueCreate {
@@ -33,6 +34,7 @@ export interface LeagueCreate {
   transfers_per_event?: number;
   team_size?: number;
   tier_config?: TierConfig[];
+  captain_multiplier?: number;
 }
 
 export interface Climber {

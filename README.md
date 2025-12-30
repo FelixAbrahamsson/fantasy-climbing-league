@@ -6,7 +6,7 @@ A fantasy sports web application for IFSC World Cup climbing competitions. Creat
 
 - 🏆 **Create & Join Leagues** - Set up private leagues for boulder or lead climbing
 - 👥 **Draft Your Team** - Select up to 6 climbers for your fantasy squad
-- 👑 **Captain Bonus** - Your team captain earns double (2x) points
+- 👑 **Captain Bonus** - Your team captain earns bonus points (configurable, default 1.2x)
 - 📊 **Real-time Leaderboards** - Track standings across all events
 - 🔄 **Transfers** - Swap climbers between events
 - 📈 **IFSC Scoring** - Authentic World Cup point system
@@ -123,7 +123,7 @@ Points are awarded based on official IFSC World Cup rankings:
 | 7th      | 455    |
 | 8th      | 415    |
 
-Captain bonus: **2x** points (double).
+Captain bonus: **Configurable per league** (default 1.2x = +20% bonus, range: 1.0x to 3.0x).
 
 ## Project Structure
 

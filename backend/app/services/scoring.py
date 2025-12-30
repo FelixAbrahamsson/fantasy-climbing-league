@@ -84,7 +84,7 @@ IFSC_POINTS = {
     80: 1,
 }
 
-CAPTAIN_MULTIPLIER = 2  # Captain gets double points
+CAPTAIN_MULTIPLIER = 1.2  # Default captain bonus (20% extra points)
 
 
 def get_points_for_rank(rank: int) -> int:
