@@ -1188,45 +1188,93 @@ def revert_transfer(
         if next_event_data["status"] in ["completed", "in_progress"]:
             raise HTTPException(status_code=400, detail="Transfer window has closed")
 
-    # Revert all transfers for this event
-    for transfer in transfer_response.data:
-        # 1. DELETE the new climber entry (it was never truly "active" for a scored event if reverting)
-        # Actually, to be safe and keep audit trail, we might keep it but it's cleaner to delete if it hasn't participated in an event.
-        # But wait, create_transfer sets removed_at/added_at.
+    # Find the ACTUAL timestamp string used in the database for this transfer window.
+    # We look for the added_at of one of the climbers coming IN.
+    history_ts = None
+    first_transfer = transfer_response.data[0]
+    roster_ts_res = (
+        supabase.table("team_roster")
+        .select("added_at")
+        .eq("team_id", str(team_id))
+        .eq("climber_id", first_transfer["climber_in_id"])
+        .is_("removed_at", "null")
+        .order("added_at", desc=True)
+        .limit(1)
+        .execute()
+    )
 
-        # Proper reversion:
-        # - Remove the entry for climber_in
-        # - Restore removed_at=NULL for climber_out
+    if roster_ts_res.data:
+        history_ts = roster_ts_res.data[0]["added_at"]
+    else:
+        # Fallback: Try finding a record that was REMOVED
+        roster_ts_res = (
+            supabase.table("team_roster")
+            .select("removed_at")
+            .eq("team_id", str(team_id))
+            .eq("climber_id", first_transfer["climber_out_id"])
+            .not_.is_("removed_at", "null")
+            .order("removed_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if roster_ts_res.data:
+            history_ts = roster_ts_res.data[0]["removed_at"]
 
-        supabase.table("team_roster").delete().eq("team_id", str(team_id)).eq(
-            "climber_id", transfer["climber_in_id"]
-        ).is_("removed_at", "null").execute()
-
-        supabase.table("team_roster").update({"removed_at": None}).eq(
-            "team_id", str(team_id)
-        ).eq("climber_id", transfer["climber_out_id"]).execute()
-
-        # 2. Revert captain history if it was changed
-        # We need to find if this transfer caused a captain change.
-        # create_transfer sets set_at and replaced_at to history_ts (event_date + 1s).
-
+    # If we still don't have a timestamp, fall back to calculation (brittle but better than nothing)
+    if not history_ts:
         event_time = TypeAdapter(datetime).validate_python(event["date"])
         history_ts = (event_time + timedelta(seconds=1)).isoformat()
 
-        # Delete the "new" captain history record
-        supabase.table("captain_history").delete().eq("team_id", str(team_id)).eq(
-            "set_at", history_ts
-        ).execute()
+    # 1. Revert team_roster changes made for this event window
+    # Delete climbers added in this window
+    supabase.table("team_roster").delete().eq("team_id", str(team_id)).eq(
+        "added_at", history_ts
+    ).execute()
 
-        # Restore the "old" captain's replaced_at to NULL
-        supabase.table("captain_history").update({"replaced_at": None}).eq(
-            "team_id", str(team_id)
-        ).eq("replaced_at", history_ts).execute()
+    # Restore climbers removed in this window
+    supabase.table("team_roster").update({"removed_at": None}).eq(
+        "team_id", str(team_id)
+    ).eq("removed_at", history_ts).execute()
 
-        # 3. Mark transfer as reverted
+    # 2. Revert captain history changes made for this event window
+    # Delete new history records
+    supabase.table("captain_history").delete().eq("team_id", str(team_id)).eq(
+        "set_at", history_ts
+    ).execute()
+
+    # Restore old history records
+    supabase.table("captain_history").update({"replaced_at": None}).eq(
+        "team_id", str(team_id)
+    ).eq("replaced_at", history_ts).execute()
+
+    # 3. Mark transfers as reverted
+    for transfer in transfer_response.data:
         supabase.table("team_transfers").update(
             {"reverted_at": datetime.now(timezone.utc).isoformat()}
         ).eq("id", transfer["id"]).execute()
+
+    # 4. Synchronize team_roster is_captain flag with restored captain_history
+    # We look for the LATEST record that has replaced_at is NULL (the restored one)
+    restored_captain = (
+        supabase.table("captain_history")
+        .select("climber_id")
+        .eq("team_id", str(team_id))
+        .is_("replaced_at", "null")
+        .order("set_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+
+    if restored_captain.data and len(restored_captain.data) > 0:
+        captain_id = restored_captain.data[0]["climber_id"]
+        # Reset all
+        supabase.table("team_roster").update({"is_captain": False}).eq(
+            "team_id", str(team_id)
+        ).is_("removed_at", "null").execute()
+        # Set correct one
+        supabase.table("team_roster").update({"is_captain": True}).eq(
+            "team_id", str(team_id)
+        ).eq("climber_id", captain_id).is_("removed_at", "null").execute()
 
     return {"message": "Transfer(s) reverted successfully"}
 
