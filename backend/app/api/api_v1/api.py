@@ -4,6 +4,7 @@ from app.api.api_v1.endpoints import (
     leaderboard,
     leagues,
     rankings,
+    scoring,
     teams,
 )
 from fastapi import APIRouter
@@ -15,6 +16,7 @@ api_router.include_router(teams.router, prefix="/teams", tags=["teams"])
 api_router.include_router(climbers.router, prefix="/climbers", tags=["climbers"])
 api_router.include_router(events.router, prefix="/events", tags=["events"])
 api_router.include_router(rankings.router, prefix="/rankings", tags=["rankings"])
+api_router.include_router(scoring.router, prefix="/scoring", tags=["scoring"])
 api_router.include_router(
     leaderboard.router, prefix="/leaderboard", tags=["leaderboard"]
 )

@@ -198,3 +198,15 @@ export const rankingsAPI = {
       { method: "POST" }
     ),
 };
+
+// Scoring
+export interface ScoringConfig {
+  points_table: { rank: number; points: number }[];
+  captain_multiplier: number;
+  min_points: number;
+  description: string;
+}
+
+export const scoringAPI = {
+  getConfig: () => fetchAPI<ScoringConfig>("/scoring"),
+};
