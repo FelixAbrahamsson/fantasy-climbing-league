@@ -26,6 +26,8 @@ def create_league(
         "admin_id": user_id,
         "invite_code": invite_code,
         "transfers_per_event": league_in.transfers_per_event,
+        "team_size": league_in.team_size,
+        "tier_config": {"tiers": [tier.model_dump() for tier in league_in.tier_config]},
     }
 
     response = supabase.table("leagues").insert(league_data).execute()

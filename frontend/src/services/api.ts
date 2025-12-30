@@ -171,3 +171,30 @@ export const leaderboardAPI = {
   getByLeague: (leagueId: string) =>
     fetchAPI<LeaderboardEntry[]>(`/leaderboard/${leagueId}`),
 };
+
+// Rankings
+export interface RankingEntry {
+  climber_id: number;
+  name: string;
+  country: string;
+  rank: number;
+  score: number | null;
+}
+
+export const rankingsAPI = {
+  get: (discipline: string, gender: string, season: number, limit = 100) =>
+    fetchAPI<RankingEntry[]>(
+      `/rankings/${discipline}/${gender}/${season}?limit=${limit}`
+    ),
+
+  sync: (season: number, discipline: string, gender: string) =>
+    fetchAPI<{
+      synced_count: number;
+      discipline: string;
+      gender: string;
+      season: number;
+    }>(
+      `/rankings/sync?season=${season}&discipline=${discipline}&gender=${gender}`,
+      { method: "POST" }
+    ),
+};

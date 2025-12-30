@@ -1,5 +1,17 @@
 // API Types
 
+export interface TierConfig {
+  name: string;
+  max_rank: number | null; // null = unlimited (lowest tier)
+  max_per_team: number | null; // null = unlimited
+}
+
+export const DEFAULT_TIER_CONFIG: TierConfig[] = [
+  { name: "S", max_rank: 10, max_per_team: 2 },
+  { name: "A", max_rank: 30, max_per_team: 2 },
+  { name: "B", max_rank: null, max_per_team: null },
+];
+
 export interface League {
   id: string;
   name: string;
@@ -9,6 +21,8 @@ export interface League {
   invite_code: string | null;
   created_at: string;
   transfers_per_event: number;
+  team_size: number;
+  tier_config: { tiers: TierConfig[] };
 }
 
 export interface LeagueCreate {
@@ -17,6 +31,8 @@ export interface LeagueCreate {
   discipline: "boulder" | "lead";
   event_ids?: number[];
   transfers_per_event?: number;
+  team_size?: number;
+  tier_config?: TierConfig[];
 }
 
 export interface Climber {

@@ -277,3 +277,105 @@
   margin-top: var(--space-xs);
 }
 
+/* Tier Configuration Styles */
+.tier-configuration {
+  margin-top: var(--space-sm);
+}
+
+.tier-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.tier-item {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+
+.tier-inputs {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-end;
+}
+
+.tier-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.tier-field label {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.tier-name-input {
+  width: 60px;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  text-align: center;
+  font-weight: 600;
+}
+
+.tier-number-input {
+  width: 80px;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.tier-number-input::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.tier-remove-btn {
+  padding: var(--space-sm);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.tier-remove-btn:hover {
+  background: rgba(255, 107, 53, 0.1);
+  border-color: var(--color-accent-primary);
+  color: var(--color-accent-primary);
+}
+
+.tier-preview {
+  margin-top: var(--space-sm);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.tier-add-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+}
+
+@media (max-width: 500px) {
+  .tier-inputs {
+    flex-wrap: wrap;
+  }
+
+  .tier-name-input,
+  .tier-number-input {
+    flex: 1;
+    min-width: 60px;
+  }
+}

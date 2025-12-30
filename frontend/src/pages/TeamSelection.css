@@ -182,3 +182,66 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Tier Badge Styles */
+.tier-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 var(--space-xs);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.tier-badge.tier-s {
+  background: linear-gradient(135deg, #FFD700, #FFA500);
+  color: #1a1a1a;
+  box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
+}
+
+.tier-badge.tier-a {
+  background: linear-gradient(135deg, #C0C0C0, #A8A8A8);
+  color: #1a1a1a;
+  box-shadow: 0 2px 4px rgba(192, 192, 192, 0.3);
+}
+
+.tier-badge.tier-b {
+  background: linear-gradient(135deg, #CD7F32, #B87333);
+  color: #1a1a1a;
+  box-shadow: 0 2px 4px rgba(205, 127, 50, 0.3);
+}
+
+.tier-badge.tier-c,
+.tier-badge.tier-d,
+.tier-badge.tier-e {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+}
+
+/* Unknown tier fallback */
+.tier-badge:not(.tier-s):not(.tier-a):not(.tier-b):not(.tier-c):not(.tier-d):not(.tier-e) {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-muted);
+}
+
+/* Tier limit reached */
+.climber-item.tier-full {
+  opacity: 0.6;
+}
+
+.climber-item.tier-full .tier-badge {
+  position: relative;
+}
+
+.climber-item.tier-full .tier-badge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: inherit;
+}

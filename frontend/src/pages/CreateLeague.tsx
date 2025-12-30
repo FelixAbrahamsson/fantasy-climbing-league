@@ -1,8 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mountain, Trophy, Calendar, Check } from "lucide-react";
+import {
+  Mountain,
+  Trophy,
+  Calendar,
+  Check,
+  Plus,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { leaguesAPI, eventsAPI } from "../services/api";
-import type { Event } from "../types";
+import type { Event, TierConfig } from "../types";
+import { DEFAULT_TIER_CONFIG } from "../types";
 import "./CreateLeague.css";
 
 export function CreateLeague() {
@@ -15,6 +24,9 @@ export function CreateLeague() {
   const [selectedEventIds, setSelectedEventIds] = useState<number[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [transfersPerEvent, setTransfersPerEvent] = useState(1);
+  const [teamSize, setTeamSize] = useState(6);
+  const [tierConfig, setTierConfig] =
+    useState<TierConfig[]>(DEFAULT_TIER_CONFIG);
   const navigate = useNavigate();
 
   // Fetch events when gender or discipline changes
@@ -84,6 +96,8 @@ export function CreateLeague() {
         discipline,
         event_ids: selectedEventIds,
         transfers_per_event: transfersPerEvent,
+        team_size: teamSize,
+        tier_config: tierConfig,
       });
       navigate(`/leagues/${league.id}`);
     } catch (err) {
@@ -220,6 +234,171 @@ export function CreateLeague() {
                   Allow players to swap team members after each completed event
                 </p>
               </div>
+
+              {/* Team Size */}
+              <div className="input-group">
+                <label>
+                  <Users size={16} style={{ marginRight: "8px" }} />
+                  Team Size
+                  <span className="input-hint">({teamSize} athletes)</span>
+                </label>
+                <div className="slider-container">
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={teamSize}
+                    onChange={(e) => setTeamSize(Number(e.target.value))}
+                    className="slider"
+                  />
+                  <div className="slider-labels">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                      <span key={n}>{n}</span>
+                    ))}
+                  </div>
+                </div>
+                <p className="input-description">
+                  Number of athletes each player can select for their team
+                </p>
+              </div>
+            </div>
+
+            {/* Tier Configuration */}
+            <div className="input-group tier-configuration">
+              <label>
+                <Trophy size={16} style={{ marginRight: "8px" }} />
+                Athlete Tiers
+                <span className="input-hint">
+                  (Based on IFSC World Rankings)
+                </span>
+              </label>
+              <p className="input-description" style={{ marginBottom: "12px" }}>
+                Configure tiers based on athlete rankings. Higher-ranked
+                athletes are more valuable but can be limited per team.
+              </p>
+
+              <div className="tier-list">
+                {tierConfig.map((tier, index) => (
+                  <div key={index} className="tier-item">
+                    <div className="tier-inputs">
+                      <div className="tier-field">
+                        <label>Name</label>
+                        <input
+                          type="text"
+                          value={tier.name}
+                          onChange={(e) => {
+                            const newConfig = [...tierConfig];
+                            newConfig[index].name = e.target.value.slice(0, 3);
+                            setTierConfig(newConfig);
+                          }}
+                          maxLength={3}
+                          className="tier-name-input"
+                        />
+                      </div>
+                      <div className="tier-field">
+                        <label>Max Rank</label>
+                        <input
+                          type="number"
+                          value={tier.max_rank ?? ""}
+                          onChange={(e) => {
+                            const newConfig = [...tierConfig];
+                            const val = e.target.value;
+                            newConfig[index].max_rank = val
+                              ? Number(val)
+                              : null;
+                            setTierConfig(newConfig);
+                          }}
+                          placeholder="∞"
+                          min={1}
+                          className="tier-number-input"
+                        />
+                      </div>
+                      <div className="tier-field">
+                        <label>Max/Team</label>
+                        <input
+                          type="number"
+                          value={tier.max_per_team ?? ""}
+                          onChange={(e) => {
+                            const newConfig = [...tierConfig];
+                            const val = e.target.value;
+                            newConfig[index].max_per_team = val
+                              ? Number(val)
+                              : null;
+                            setTierConfig(newConfig);
+                          }}
+                          placeholder="∞"
+                          min={0}
+                          className="tier-number-input"
+                        />
+                      </div>
+                      {tierConfig.length > 1 && (
+                        <button
+                          type="button"
+                          className="tier-remove-btn"
+                          onClick={() => {
+                            setTierConfig(
+                              tierConfig.filter((_, i) => i !== index)
+                            );
+                          }}
+                          title="Remove tier"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="tier-preview">
+                      Ranks{" "}
+                      {index === 0
+                        ? "1"
+                        : String((tierConfig[index - 1].max_rank ?? 0) + 1)}
+                      –{tier.max_rank ?? "∞"}
+                      {tier.max_per_team !== null &&
+                        " • Max " + tier.max_per_team + "/team"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {tierConfig.length < 6 && (
+                <button
+                  type="button"
+                  className="btn btn-secondary tier-add-btn"
+                  onClick={() => {
+                    const lastTier = tierConfig[tierConfig.length - 1];
+                    const newTierMaxRank = (lastTier.max_rank ?? 50) + 20;
+
+                    // Find next available letter not already used
+                    const usedNames = new Set(
+                      tierConfig.map((t) => t.name.toUpperCase())
+                    );
+                    let nextLetter = "A";
+                    for (let i = 0; i < 26; i++) {
+                      const letter = String.fromCharCode(65 + i);
+                      if (!usedNames.has(letter)) {
+                        nextLetter = letter;
+                        break;
+                      }
+                    }
+
+                    setTierConfig([
+                      ...tierConfig.slice(0, -1),
+                      {
+                        ...tierConfig[tierConfig.length - 1],
+                        max_rank: newTierMaxRank,
+                        max_per_team: 2,
+                      },
+                      {
+                        name: nextLetter,
+                        max_rank: null,
+                        max_per_team: null,
+                      },
+                    ]);
+                  }}
+                >
+                  <Plus size={16} />
+                  Add Tier
+                </button>
+              )}
             </div>
 
             {/* Event Selection */}

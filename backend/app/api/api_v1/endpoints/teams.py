@@ -1,5 +1,6 @@
 import uuid
-from typing import List
+from datetime import datetime
+from typing import List, Optional
 
 from app.core.auth import get_current_user_id
 from app.db.supabase import supabase
@@ -13,6 +14,79 @@ from app.schemas.team import (
 from fastapi import APIRouter, Header, HTTPException
 
 router = APIRouter()
+
+
+def get_athlete_tier(
+    climber_id: int, rankings: dict[int, int], tier_config: list[dict]
+) -> str:
+    """Determine which tier an athlete belongs to based on their ranking."""
+    rank = rankings.get(climber_id)
+
+    # If no ranking found, athlete goes to the lowest tier
+    if rank is None:
+        return tier_config[-1]["name"]
+
+    for tier in tier_config:
+        max_rank = tier.get("max_rank")
+        if max_rank is None or rank <= max_rank:
+            return tier["name"]
+
+    # Fallback to last tier
+    return tier_config[-1]["name"]
+
+
+def validate_roster_tier_limits(
+    roster: List,
+    tier_config: list[dict],
+    discipline: str,
+    gender: str,
+):
+    """
+    Validate that the roster respects tier limits.
+
+    Gets the current season's rankings and checks that the roster
+    doesn't exceed any tier's max_per_team limit.
+    """
+    # Get current season (use current year)
+    current_season = datetime.now().year
+
+    # Fetch rankings for this discipline/gender/season
+    climber_ids = [entry.climber_id for entry in roster]
+    if not climber_ids:
+        return
+
+    rankings_response = (
+        supabase.table("athlete_rankings")
+        .select("climber_id, rank")
+        .eq("discipline", discipline)
+        .eq("gender", gender)
+        .eq("season", current_season)
+        .in_("climber_id", climber_ids)
+        .execute()
+    )
+
+    rankings = {r["climber_id"]: r["rank"] for r in (rankings_response.data or [])}
+
+    # Count athletes per tier
+    tier_counts: dict[str, int] = {}
+    for tier in tier_config:
+        tier_counts[tier["name"]] = 0
+
+    for entry in roster:
+        tier_name = get_athlete_tier(entry.climber_id, rankings, tier_config)
+        tier_counts[tier_name] = tier_counts.get(tier_name, 0) + 1
+
+    # Validate against limits
+    for tier in tier_config:
+        tier_name = tier["name"]
+        max_per_team = tier.get("max_per_team")
+
+        # None means unlimited
+        if max_per_team is not None and tier_counts.get(tier_name, 0) > max_per_team:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Too many {tier_name}-tier athletes (max {max_per_team}, got {tier_counts[tier_name]})",
+            )
 
 
 @router.post("/", response_model=TeamResponse)
@@ -179,13 +253,13 @@ def update_team_roster(
     roster_update: TeamRosterUpdate,
     authorization: str = Header(None),
 ):
-    """Update the team's roster. Max 6 climbers, one captain."""
+    """Update the team's roster. Validates against league team_size and tier limits."""
     user_id = get_current_user_id(authorization)
 
-    # Verify team belongs to user
+    # Verify team belongs to user and get league info
     team_response = (
         supabase.table("fantasy_teams")
-        .select("*, league_id")
+        .select("*, leagues(id, discipline, gender, team_size, tier_config)")
         .eq("id", str(team_id))
         .single()
         .execute()
@@ -195,6 +269,7 @@ def update_team_roster(
         raise HTTPException(status_code=404, detail="Team not found")
 
     team = team_response.data
+    league = team.get("leagues") or {}
 
     if team["user_id"] != user_id:
         raise HTTPException(status_code=403, detail="You don't own this team")
@@ -207,13 +282,27 @@ def update_team_roster(
             detail=f"Roster is locked: {lock_status['reason']}. Use transfers to change your team.",
         )
 
-    # Validate roster: max 6, exactly one captain
-    if len(roster_update.roster) > 6:
-        raise HTTPException(status_code=400, detail="Maximum 6 climbers allowed")
+    # Validate roster size against league team_size
+    team_size = league.get("team_size", 6)
+    if len(roster_update.roster) > team_size:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Maximum {team_size} climbers allowed in this league",
+        )
 
     captains = [r for r in roster_update.roster if r.is_captain]
     if len(captains) != 1:
         raise HTTPException(status_code=400, detail="Exactly one captain required")
+
+    # Validate tier limits
+    tier_config = league.get("tier_config", {}).get("tiers", [])
+    if tier_config:
+        validate_roster_tier_limits(
+            roster_update.roster,
+            tier_config,
+            league.get("discipline"),
+            league.get("gender"),
+        )
 
     # Mark all current roster entries as removed
     from datetime import datetime, timezone

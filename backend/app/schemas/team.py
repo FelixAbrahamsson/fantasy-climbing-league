@@ -40,7 +40,9 @@ class RosterEntry(BaseModel):
 
 
 class TeamRosterUpdate(BaseModel):
-    roster: List[RosterEntry] = Field(..., max_length=6)
+    roster: List[RosterEntry] = Field(
+        ..., max_length=10
+    )  # Max is validated against league.team_size
 
 
 class TeamWithRoster(TeamResponse):
