@@ -6,12 +6,28 @@
   margin-top: var(--space-lg);
 }
 
-.transfer-section h3 {
+.transfer-header {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   margin-bottom: var(--space-md);
+}
+
+.transfer-header span:first-of-type {
   font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.league-context-tag {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+  margin-left: auto;
 }
 
 .transfer-section h4 {
@@ -101,6 +117,14 @@
 .transfer-event-btn:hover {
   border-color: var(--color-accent-primary);
   background: rgba(255, 107, 53, 0.05);
+}
+
+.event-name-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: var(--space-sm);
 }
 
 .transfer-event-btn .event-date {
@@ -202,54 +226,6 @@
   margin-top: var(--space-xl);
 }
 
-/* Captain Change Section */
-.captain-change-section {
-  margin-top: var(--space-lg);
-  padding-top: var(--space-lg);
-  border-top: 1px solid var(--color-border);
-}
-
-.captain-change-section h4 {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  color: var(--color-accent-gold);
-}
-
-.captain-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-}
-
-.captain-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: var(--space-xs) var(--space-sm);
-  background: var(--color-bg-secondary);
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: all var(--transition-fast);
-}
-
-.captain-btn:hover:not(:disabled) {
-  border-color: var(--color-accent-gold);
-  background: rgba(255, 193, 7, 0.1);
-}
-
-.captain-btn.current {
-  border-color: var(--color-accent-gold);
-  background: rgba(255, 193, 7, 0.15);
-  color: var(--color-accent-gold);
-  cursor: default;
-}
-
-.captain-btn:disabled {
-  opacity: 0.8;
-}
 
 /* Small tier badges for player buttons */
 .tier-badge-sm {

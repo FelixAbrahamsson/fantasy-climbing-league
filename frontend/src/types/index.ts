@@ -68,7 +68,7 @@ export interface Event {
   date: string;
   discipline: "boulder" | "lead";
   gender: "men" | "women";
-  status: "upcoming" | "completed";
+  status: "upcoming" | "in_progress" | "completed";
 }
 
 export interface LeaderboardEntry {
@@ -101,7 +101,7 @@ export interface EventBreakdown {
   event_id: number;
   event_name: string;
   event_date: string;
-  event_status: "upcoming" | "completed";
+  event_status: "upcoming" | "in_progress" | "completed";
   team_total: number;
   athlete_scores: AthleteEventScore[];
 }
@@ -135,7 +135,7 @@ export interface LeagueEventData {
   event_id: number;
   event_name: string;
   event_date: string;
-  event_status: "upcoming" | "completed";
+  event_status: "upcoming" | "in_progress" | "completed";
   teams: LeagueTeamEventData[];
 }
 

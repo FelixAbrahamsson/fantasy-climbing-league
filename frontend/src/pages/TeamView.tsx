@@ -138,6 +138,8 @@ export function TeamView() {
         {/* Transfer Section */}
         <TransferSection
           teamId={teamId!}
+          leagueId={team.league_id}
+          league={league}
           roster={selectedRoster}
           availableClimbers={availableClimbers}
           rankings={rankings}

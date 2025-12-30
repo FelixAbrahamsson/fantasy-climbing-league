@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { ArrowRightLeft, Undo2, Crown, Calendar } from "lucide-react";
-import { teamsAPI, eventsAPI } from "../services/api";
-import type { Transfer, Climber, Event, TierConfig } from "../types";
+import { teamsAPI, leaguesAPI } from "../services/api";
+import type { Transfer, Climber, Event, TierConfig, League } from "../types";
 import "./TransferSection.css";
 
 interface TransferSectionProps {
   teamId: string;
+  leagueId: string;
+  league: League | null;
   roster: { climber_id: number; is_captain: boolean }[];
   availableClimbers: Climber[];
   rankings: Map<number, number>;
@@ -15,6 +17,8 @@ interface TransferSectionProps {
 
 export function TransferSection({
   teamId,
+  leagueId,
+  league,
   roster,
   availableClimbers,
   rankings,
@@ -40,10 +44,14 @@ export function TransferSection({
     try {
       const [transfersData, eventsData] = await Promise.all([
         teamsAPI.getTransfers(teamId),
-        eventsAPI.getAll({ status: "completed" }),
+        leaguesAPI.getEvents(leagueId),
       ]);
+      // Sort events by date ascending
+      const sortedEvents = [...eventsData].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
       setTransfers(transfersData);
-      setEvents(eventsData);
+      setEvents(sortedEvents);
     } catch (err) {
       console.error("Failed to load transfer data:", err);
     } finally {
@@ -52,18 +60,50 @@ export function TransferSection({
   };
 
   const getAvailableTransferEvents = () => {
-    // Get completed events that don't have an active (non-reverted) transfer
-    const activeTransferEventIds = transfers
-      .filter((t) => !t.reverted_at)
-      .map((t) => t.after_event_id);
+    // 1. Find the LATEST completed event
+    const completedEvents = events.filter((e) => e.status === "completed");
+    if (completedEvents.length === 0) return [];
 
-    return events.filter(
-      (e) => e.status === "completed" && !activeTransferEventIds.includes(e.id)
+    const latestCompletedEvent = completedEvents[completedEvents.length - 1];
+
+    // 2. Check if a transfer already exists for this event
+    const hasTransferForLatest = transfers.some(
+      (t) => t.after_event_id === latestCompletedEvent.id && !t.reverted_at
     );
+    if (hasTransferForLatest) return [];
+
+    // 3. Check if the NEXT event has already started
+    const latestIndex = events.findIndex(
+      (e) => e.id === latestCompletedEvent.id
+    );
+    const nextEvent = events[latestIndex + 1];
+
+    if (
+      nextEvent &&
+      (nextEvent.status === "in_progress" || nextEvent.status === "completed")
+    ) {
+      return [];
+    }
+
+    return [latestCompletedEvent];
   };
 
   const getPendingTransfers = () => {
-    return transfers.filter((t) => !t.reverted_at);
+    // A transfer is "pending" (reversible) ONLY if the window is still open.
+    // That means the next event after the one the transfer followed hasn't started yet.
+    return transfers.filter((t) => {
+      if (t.reverted_at) return false;
+
+      const eventIndex = events.findIndex((e) => e.id === t.after_event_id);
+      if (eventIndex === -1) return false;
+
+      const nextEvent = events[eventIndex + 1];
+      // If no next event, or next event is upcoming, it's still reversible
+      return (
+        !nextEvent ||
+        (nextEvent.status !== "in_progress" && nextEvent.status !== "completed")
+      );
+    });
   };
 
   const getRosterClimber = (climberId: number) => {
@@ -174,10 +214,15 @@ export function TransferSection({
 
   return (
     <div className="transfer-section">
-      <h3>
+      <div className="transfer-header">
         <ArrowRightLeft size={18} />
-        Transfers
-      </h3>
+        <span>Transfers</span>
+        {league && (
+          <span className="league-context-tag">
+            {league.discipline} {league.gender}
+          </span>
+        )}
+      </div>
 
       {/* Pending Transfers */}
       {pendingTransfers.length > 0 && (
@@ -207,19 +252,17 @@ export function TransferSection({
       {availableEvents.length > 0 ? (
         <div className="available-transfers">
           <h4>Make a Transfer</h4>
-          <div className="transfer-events">
-            {availableEvents.slice(0, 3).map((event) => (
-              <button
-                key={event.id}
-                className="transfer-event-btn"
-                onClick={() => handleOpenModal(event.id)}
-              >
-                <Calendar size={14} />
-                <span>After {event.name.slice(0, 25)}...</span>
-                <span className="event-date">{formatDate(event.date)}</span>
-              </button>
-            ))}
-          </div>
+          {availableEvents.map((event) => (
+            <button
+              key={event.id}
+              className="transfer-event-btn"
+              onClick={() => handleOpenModal(event.id)}
+            >
+              <Calendar size={14} />
+              <span className="event-name-text">After {event.name}</span>
+              <span className="event-date">{formatDate(event.date)}</span>
+            </button>
+          ))}
         </div>
       ) : (
         <p className="no-transfers">No transfer windows available</p>
