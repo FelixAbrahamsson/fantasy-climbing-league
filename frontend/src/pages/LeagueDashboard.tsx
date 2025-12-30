@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   Trophy,
-  Users,
+  User,
+  Plus,
   Crown,
   ArrowLeft,
   Copy,
@@ -70,15 +71,21 @@ export function LeagueDashboard() {
     }
   };
 
+  const navigate = useNavigate();
+
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!teamName.trim() || !leagueId) return;
 
     try {
-      await teamsAPI.create({ name: teamName, league_id: leagueId });
+      const newTeam = await teamsAPI.create({
+        name: teamName,
+        league_id: leagueId,
+      });
       setTeamName("");
       setCreatingTeam(false);
-      loadData();
+      // Navigate to the new team's page to set up the roster
+      navigate(`/teams/${newTeam.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create team");
     }
@@ -216,61 +223,69 @@ export function LeagueDashboard() {
             )}
           </section>
 
-          {/* Teams */}
+          {/* My Team */}
           <section className="dashboard-section teams-section">
             <div className="section-header">
               <h2>
-                <Users size={20} /> Teams
+                <User size={20} /> My Team
               </h2>
-              {!creatingTeam && !userHasTeam && (
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setCreatingTeam(true)}
-                >
-                  Create Team
-                </button>
-              )}
             </div>
 
-            {creatingTeam && (
+            {userHasTeam ? (
+              // User has a team - show link to their team
+              <div className="my-team-card">
+                {teams
+                  .filter((t) => t.user_id === user?.id)
+                  .map((team) => (
+                    <Link
+                      to={`/teams/${team.id}`}
+                      key={team.id}
+                      className="team-item my-team-item"
+                    >
+                      <Crown size={24} className="team-icon" />
+                      <div className="team-details">
+                        <span className="team-name">{team.name}</span>
+                        <span className="team-action">
+                          View & manage roster →
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+              </div>
+            ) : creatingTeam ? (
+              // Creating team form
               <form onSubmit={handleCreateTeam} className="create-team-form">
                 <input
                   type="text"
-                  placeholder="Team name..."
+                  placeholder="Enter your team name..."
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
                   autoFocus
                 />
-                <button type="submit" className="btn btn-primary btn-sm">
-                  Create
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => setCreatingTeam(false)}
-                >
-                  Cancel
-                </button>
-              </form>
-            )}
-
-            {teams.length === 0 ? (
-              <div className="empty-section">
-                <Users size={32} />
-                <p>No teams yet. Create the first one!</p>
-              </div>
-            ) : (
-              <div className="teams-list">
-                {teams.map((team) => (
-                  <Link
-                    to={`/teams/${team.id}`}
-                    key={team.id}
-                    className="team-item"
+                <div className="form-actions">
+                  <button type="submit" className="btn btn-primary">
+                    Create Team
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => setCreatingTeam(false)}
                   >
-                    <Crown size={18} className="team-icon" />
-                    <span className="team-name">{team.name}</span>
-                  </Link>
-                ))}
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              // No team - show prominent create button
+              <div className="no-team-cta">
+                <p>You haven't created a team in this league yet.</p>
+                <button
+                  className="btn btn-primary btn-lg create-team-btn"
+                  onClick={() => setCreatingTeam(true)}
+                >
+                  <Plus size={20} />
+                  Create Your Team
+                </button>
               </div>
             )}
           </section>
