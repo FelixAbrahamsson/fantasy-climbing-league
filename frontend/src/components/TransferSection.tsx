@@ -285,6 +285,13 @@ export function TransferSection({
                         setNewCaptainId(null);
                       }}
                     >
+                      <span
+                        className={`tier-badge-sm tier-${getAthleTier(
+                          climber.id
+                        ).toLowerCase()}`}
+                      >
+                        {getAthleTier(climber.id)}
+                      </span>
                       {climber.name}
                       {r.is_captain && <Crown size={12} />}
                     </button>

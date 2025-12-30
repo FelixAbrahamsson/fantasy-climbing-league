@@ -719,7 +719,7 @@ def create_transfer(
     # Verify team ownership
     team_response = (
         supabase.table("fantasy_teams")
-        .select("*, leagues(transfers_per_event, discipline, gender)")
+        .select("*, leagues(transfers_per_event, discipline, gender, tier_config)")
         .eq("id", str(team_id))
         .single()
         .execute()
@@ -830,6 +830,42 @@ def create_transfer(
             status_code=400, detail="New climber is already in your roster"
         )
 
+    # Validate tier limits for the post-transfer roster
+    tier_config = league.get("tier_config", {}).get("tiers", [])
+    if tier_config:
+        # Fetch current active roster
+        current_roster_response = (
+            supabase.table("team_roster")
+            .select("climber_id")
+            .eq("team_id", str(team_id))
+            .is_("removed_at", "null")
+            .execute()
+        )
+
+        current_roster_ids = [
+            r["climber_id"] for r in (current_roster_response.data or [])
+        ]
+
+        # Simulate the roster change
+        new_roster_ids = [
+            mid for mid in current_roster_ids if mid != transfer_in.climber_out_id
+        ]
+        new_roster_ids.append(transfer_in.climber_in_id)
+
+        # Create minimal objects for validation (function expects objects with climber_id attribute)
+        class RosterEntry:
+            def __init__(self, climber_id):
+                self.climber_id = climber_id
+
+        simulated_roster = [RosterEntry(cid) for cid in new_roster_ids]
+
+        validate_roster_tier_limits(
+            simulated_roster,
+            tier_config,
+            league.get("discipline"),
+            league.get("gender"),
+        )
+
     # Perform the transfer
     now = datetime.now(timezone.utc).isoformat()
 
@@ -866,6 +902,13 @@ def create_transfer(
         "climber_out_id": transfer_in.climber_out_id,
         "climber_in_id": transfer_in.climber_in_id,
     }
+
+    # cleanup any reverted transfers that would cause a unique constraint violation
+    supabase.table("team_transfers").delete().eq("team_id", str(team_id)).eq(
+        "after_event_id", transfer_in.after_event_id
+    ).eq("climber_out_id", transfer_in.climber_out_id).not_.is_(
+        "reverted_at", "null"
+    ).execute()
 
     transfer_response = supabase.table("team_transfers").insert(transfer_data).execute()
 
