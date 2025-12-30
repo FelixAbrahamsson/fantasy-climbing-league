@@ -159,6 +159,7 @@ a:hover {
 /* Buttons */
 button {
   font-family: inherit;
+  color: inherit;
   cursor: pointer;
 }
 
