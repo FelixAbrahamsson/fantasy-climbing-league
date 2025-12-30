@@ -96,9 +96,7 @@ def get_points_for_rank(rank: int) -> int:
     return 0
 
 
-def calculate_climber_score(rank: int, is_captain: bool = False) -> int:
+def calculate_climber_score(rank: int, multiplier: float = 1.0) -> int:
     """Calculate score for a climber including captain bonus."""
     base_points = get_points_for_rank(rank)
-    if is_captain:
-        return base_points * CAPTAIN_MULTIPLIER
-    return base_points
+    return int(base_points * multiplier)

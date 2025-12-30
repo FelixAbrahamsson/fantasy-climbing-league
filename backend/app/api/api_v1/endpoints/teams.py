@@ -331,6 +331,7 @@ def update_team_roster(
     ).eq("team_id", str(team_id)).is_("removed_at", "null").execute()
 
     # Insert new roster entries
+    now = datetime.now(timezone.utc).isoformat()
     for entry in roster_update.roster:
         supabase.table("team_roster").insert(
             {
@@ -339,6 +340,21 @@ def update_team_roster(
                 "is_captain": entry.is_captain,
             }
         ).execute()
+
+        if entry.is_captain:
+            # Mark any existing captain history as replaced (though typically this is the first draft)
+            supabase.table("captain_history").update({"replaced_at": now}).eq(
+                "team_id", str(team_id)
+            ).is_("replaced_at", "null").execute()
+
+            # Record new captain
+            supabase.table("captain_history").insert(
+                {
+                    "team_id": str(team_id),
+                    "climber_id": entry.climber_id,
+                    "set_at": now,
+                }
+            ).execute()
 
     # Return updated team
     return get_team_with_roster(team_id)
@@ -355,10 +371,10 @@ def set_captain(
 
     user_id = get_current_user_id(authorization)
 
-    # Verify team ownership
+    # Verify team ownership and get league_id
     team_response = (
         supabase.table("fantasy_teams")
-        .select("user_id")
+        .select("user_id, league_id")
         .eq("id", str(team_id))
         .single()
         .execute()
@@ -366,6 +382,16 @@ def set_captain(
 
     if not team_response.data or team_response.data["user_id"] != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
+
+    league_id = team_response.data["league_id"]
+
+    # Check if roster is locked
+    lock_status = check_roster_locked(league_id)
+    if lock_status["locked"]:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Roster is locked: {lock_status['reason']}. Users must use transfers to change captains mid-season.",
+        )
 
     now = datetime.now(timezone.utc).isoformat()
 
@@ -412,7 +438,7 @@ def get_team_event_breakdown(team_id: uuid.UUID):
     # Get team with league info
     team_response = (
         supabase.table("fantasy_teams")
-        .select("*, leagues(discipline, gender)")
+        .select("*, leagues(discipline, gender, captain_multiplier)")
         .eq("id", str(team_id))
         .single()
         .execute()
@@ -423,30 +449,28 @@ def get_team_event_breakdown(team_id: uuid.UUID):
 
     team = team_response.data
     league = team.get("leagues") or {}
+    captain_multiplier = league.get("captain_multiplier", 1.2)
+    date_adapter = TypeAdapter(datetime)
 
-    # Get roster with climber details
+    # Get FULL roster history with climber details (including is_captain for legacy fallback)
     roster_response = (
         supabase.table("team_roster")
-        .select("climber_id, is_captain, climbers(id, name, country)")
+        .select(
+            "climber_id, is_captain, added_at, removed_at, climbers(id, name, country)"
+        )
         .eq("team_id", str(team_id))
-        .is_("removed_at", "null")
         .execute()
     )
+    all_roster_entries = roster_response.data or []
 
-    roster = roster_response.data or []
-    climber_ids = [r["climber_id"] for r in roster]
-    climber_map = {}
-    captain_id = None
-    for r in roster:
-        climber_data = r.get("climbers") or {}
-        climber_map[r["climber_id"]] = {
-            "id": climber_data.get("id"),
-            "name": climber_data.get("name", "Unknown"),
-            "country": climber_data.get("country"),
-            "is_captain": r.get("is_captain", False),
-        }
-        if r.get("is_captain"):
-            captain_id = r["climber_id"]
+    # Get FULL captain history
+    captain_history_response = (
+        supabase.table("captain_history")
+        .select("climber_id, set_at, replaced_at")
+        .eq("team_id", str(team_id))
+        .execute()
+    )
+    all_captain_entries = captain_history_response.data or []
 
     # Get league events or fall back to matching discipline/gender events
     league_id = team["league_id"]
@@ -483,22 +507,64 @@ def get_team_event_breakdown(team_id: uuid.UUID):
 
     for event in events:
         event_id = event["id"]
+        event_date = date_adapter.validate_python(event["date"])
 
-        # Get results for all team climbers in this event
+        # 1. Reconstruct roster for this event date
+        active_roster = []
+        active_climber_ids = []
+        current_captain_id_for_event = None  # Fallback if no history
+        for r in all_roster_entries:
+            added_at = date_adapter.validate_python(r["added_at"])
+            removed_at = (
+                date_adapter.validate_python(r["removed_at"])
+                if r.get("removed_at")
+                else None
+            )
+
+            if added_at <= event_date and (not removed_at or removed_at > event_date):
+                climber_data = r.get("climbers") or {}
+                active_roster.append(
+                    {
+                        "id": climber_data.get("id"),
+                        "name": climber_data.get("name", "Unknown"),
+                        "country": climber_data.get("country"),
+                        "is_captain_fallback": r.get("is_captain", False),
+                    }
+                )
+                active_climber_ids.append(r["climber_id"])
+                if r.get("is_captain"):
+                    current_captain_id_for_event = r["climber_id"]
+
+        # 2. Determine captain for this event date
+        event_captain_id = None
+        for ch in all_captain_entries:
+            set_at = date_adapter.validate_python(ch["set_at"])
+            replaced_at = (
+                date_adapter.validate_python(ch["replaced_at"])
+                if ch.get("replaced_at")
+                else None
+            )
+
+            if set_at <= event_date and (not replaced_at or replaced_at > event_date):
+                event_captain_id = ch["climber_id"]
+                break
+
+        # 2b. Fallback for teams with no history records yet
+        if event_captain_id is None:
+            event_captain_id = current_captain_id_for_event
+
+        # 3. Get results for active climbers in this event
         results_response = (
             (
                 supabase.table("event_results")
                 .select("climber_id, rank, score")
                 .eq("event_id", event_id)
-                .in_("climber_id", climber_ids)
+                .in_("climber_id", active_climber_ids)
                 .execute()
             )
-            if climber_ids
+            if active_climber_ids
             else {"data": []}
         )
-
-        athlete_scores = []
-        event_total = 0
 
         results_map = {
             r["climber_id"]: r
@@ -509,16 +575,22 @@ def get_team_event_breakdown(team_id: uuid.UUID):
             )
         }
 
-        for climber_id, climber_info in climber_map.items():
+        athlete_scores = []
+        event_total = 0
+
+        for climber in active_roster:
+            climber_id = climber["id"]
             result = results_map.get(climber_id)
+            is_captain = climber_id == event_captain_id
+            multiplier = captain_multiplier if is_captain else 1.0
+
             if result:
-                is_captain = climber_info["is_captain"]
-                points = calculate_climber_score(result["rank"], is_captain)
+                points = calculate_climber_score(result["rank"], multiplier)
                 athlete_scores.append(
                     {
                         "climber_id": climber_id,
-                        "climber_name": climber_info["name"],
-                        "country": climber_info["country"],
+                        "climber_name": climber["name"],
+                        "country": climber["country"],
                         "is_captain": is_captain,
                         "rank": result["rank"],
                         "base_points": result["score"],
@@ -530,9 +602,9 @@ def get_team_event_breakdown(team_id: uuid.UUID):
                 athlete_scores.append(
                     {
                         "climber_id": climber_id,
-                        "climber_name": climber_info["name"],
-                        "country": climber_info["country"],
-                        "is_captain": climber_info["is_captain"],
+                        "climber_name": climber["name"],
+                        "country": climber["country"],
+                        "is_captain": is_captain,
                         "rank": None,
                         "base_points": 0,
                         "total_points": 0,
@@ -556,7 +628,7 @@ def get_team_event_breakdown(team_id: uuid.UUID):
     return {
         "team_id": str(team_id),
         "team_name": team["name"],
-        "league_id": league_id,
+        "league_id": team["league_id"],
         "events": event_breakdown,
     }
 
@@ -569,7 +641,7 @@ def get_league_event_breakdown(league_id: uuid.UUID):
     # Get league info
     league_response = (
         supabase.table("leagues")
-        .select("discipline, gender")
+        .select("discipline, gender, captain_multiplier")
         .eq("id", str(league_id))
         .single()
         .execute()
@@ -579,8 +651,10 @@ def get_league_event_breakdown(league_id: uuid.UUID):
         raise HTTPException(status_code=404, detail="League not found")
 
     league = league_response.data
+    captain_multiplier = league.get("captain_multiplier", 1.2)
+    date_adapter = TypeAdapter(datetime)
 
-    # Get all teams in the league with their rosters
+    # Get all teams in the league
     teams_response = (
         supabase.table("fantasy_teams")
         .select("id, name, user_id, profiles(username)")
@@ -589,18 +663,30 @@ def get_league_event_breakdown(league_id: uuid.UUID):
     )
 
     teams = teams_response.data or []
+    team_ids = [t["id"] for t in teams]
 
-    # Get rosters for all teams
-    team_rosters = {}
-    for team in teams:
-        roster_response = (
-            supabase.table("team_roster")
-            .select("climber_id, is_captain, climbers(id, name, country)")
-            .eq("team_id", team["id"])
-            .is_("removed_at", "null")
-            .execute()
+    if not team_ids:
+        return {"league_id": str(league_id), "events": []}
+
+    # Get ALL roster history for all teams in this league
+    all_rosters_response = (
+        supabase.table("team_roster")
+        .select(
+            "team_id, climber_id, is_captain, added_at, removed_at, climbers(id, name, country)"
         )
-        team_rosters[team["id"]] = roster_response.data or []
+        .in_("team_id", team_ids)
+        .execute()
+    )
+    all_rosters = all_rosters_response.data or []
+
+    # Get ALL captain history for all teams in this league
+    all_captains_response = (
+        supabase.table("captain_history")
+        .select("team_id, climber_id, set_at, replaced_at")
+        .in_("team_id", team_ids)
+        .execute()
+    )
+    all_captains = all_captains_response.data or []
 
     # Get league events or fall back to matching discipline/gender events
     league_events_response = (
@@ -636,8 +722,9 @@ def get_league_event_breakdown(league_id: uuid.UUID):
 
     for event in events:
         event_id = event["id"]
+        event_date = date_adapter.validate_python(event["date"])
 
-        # Get all event results for this event
+        # Get all results for this event
         all_results_response = (
             supabase.table("event_results")
             .select("climber_id, rank, score")
@@ -649,24 +736,79 @@ def get_league_event_breakdown(league_id: uuid.UUID):
         # Calculate scores for each team
         teams_data = []
         for team in teams:
-            roster = team_rosters.get(team["id"], [])
+            team_id = team["id"]
+
+            # 1. Determine active roster for this team at this event date
+            active_roster = []
+            active_climber_ids = []
+            current_captain_id_for_event = None
+            for r in all_rosters:
+                if r["team_id"] != team_id:
+                    continue
+
+                added_at = date_adapter.validate_python(r["added_at"])
+                removed_at = (
+                    date_adapter.validate_python(r["removed_at"])
+                    if r.get("removed_at")
+                    else None
+                )
+
+                if added_at <= event_date and (
+                    not removed_at or removed_at > event_date
+                ):
+                    climber_data = r.get("climbers") or {}
+                    active_roster.append(
+                        {
+                            "id": climber_data.get("id"),
+                            "name": climber_data.get("name", "Unknown"),
+                            "country": climber_data.get("country"),
+                        }
+                    )
+                    active_climber_ids.append(r["climber_id"])
+                    if r.get("is_captain"):
+                        current_captain_id_for_event = r["climber_id"]
+
+            # 2. Determine active captain for this team at this event date
+            event_captain_id = None
+            for ch in all_captains:
+                if ch["team_id"] != team_id:
+                    continue
+
+                set_at = date_adapter.validate_python(ch["set_at"])
+                replaced_at = (
+                    date_adapter.validate_python(ch["replaced_at"])
+                    if ch.get("replaced_at")
+                    else None
+                )
+
+                if set_at <= event_date and (
+                    not replaced_at or replaced_at > event_date
+                ):
+                    event_captain_id = ch["climber_id"]
+                    break
+
+            # 2b. Fallback for teams with no history records yet
+            if event_captain_id is None:
+                event_captain_id = current_captain_id_for_event
+
+            # 3. Calculate team totals
             athlete_scores = []
             team_total = 0
 
-            for r in roster:
-                climber_data = r.get("climbers") or {}
-                climber_id = r["climber_id"]
-                is_captain = r.get("is_captain", False)
+            for climber in active_roster:
+                climber_id = climber["id"]
                 result = results_map.get(climber_id)
+                is_captain = climber_id == event_captain_id
+                multiplier = captain_multiplier if is_captain else 1.0
 
                 if result:
-                    points = calculate_climber_score(result["rank"], is_captain)
+                    points = calculate_climber_score(result["rank"], multiplier)
                     team_total += points
                     athlete_scores.append(
                         {
                             "climber_id": climber_id,
-                            "climber_name": climber_data.get("name", "Unknown"),
-                            "country": climber_data.get("country"),
+                            "climber_name": climber["name"],
+                            "country": climber["country"],
                             "is_captain": is_captain,
                             "rank": result["rank"],
                             "points": points,
@@ -676,8 +818,8 @@ def get_league_event_breakdown(league_id: uuid.UUID):
                     athlete_scores.append(
                         {
                             "climber_id": climber_id,
-                            "climber_name": climber_data.get("name", "Unknown"),
-                            "country": climber_data.get("country"),
+                            "climber_name": climber["name"],
+                            "country": climber["country"],
                             "is_captain": is_captain,
                             "rank": None,
                             "points": 0,
@@ -826,12 +968,31 @@ def create_transfer(
             status_code=400, detail="Climber to remove is not in your roster"
         )
 
-    is_swapping_captain = roster_check.data[0].get("is_captain", False)
+    # Get current captain
+    current_captain_res = (
+        supabase.table("team_roster")
+        .select("climber_id")
+        .eq("team_id", str(team_id))
+        .eq("is_captain", True)
+        .is_("removed_at", "null")
+        .execute()
+    )
+    current_captain_id = (
+        current_captain_res.data[0]["climber_id"] if current_captain_res.data else None
+    )
+
+    # Determine if the captain is actually changing
+    # The captain changes if:
+    #   a) The current captain is being removed (climber_out_id == current_captain_id)
+    #   b) The user explicitly requested a new captain (new_captain_id is provided and different from current_captain_id)
+    is_swapping_captain = (current_captain_id == transfer_in.climber_out_id) or (
+        transfer_in.new_captain_id and transfer_in.new_captain_id != current_captain_id
+    )
 
     if is_swapping_captain and not transfer_in.new_captain_id:
         raise HTTPException(
             status_code=400,
-            detail="You are swapping out your captain. Please provide new_captain_id",
+            detail="You must specify a new_captain_id when changing captains.",
         )
 
     # Verify climber_in is not already in roster
@@ -886,10 +1047,15 @@ def create_transfer(
         )
 
     # Perform the transfer
-    now = datetime.now(timezone.utc).isoformat()
+    # Use the event date + 1 second as the history timestamp.
+    # This ensures the transfer is strictly "after" the event, making it robust against shifted system time.
+    from datetime import timedelta
+
+    event_time = TypeAdapter(datetime).validate_python(event["date"])
+    history_ts = (event_time + timedelta(seconds=1)).isoformat()
 
     # Remove the old climber from roster
-    supabase.table("team_roster").update({"removed_at": now}).eq(
+    supabase.table("team_roster").update({"removed_at": history_ts}).eq(
         "team_id", str(team_id)
     ).eq("climber_id", transfer_in.climber_out_id).is_("removed_at", "null").execute()
 
@@ -902,16 +1068,36 @@ def create_transfer(
             "team_id": str(team_id),
             "climber_id": transfer_in.climber_in_id,
             "is_captain": new_is_captain,
-            "added_at": now,
+            "added_at": history_ts,
         }
     ).execute()
 
-    # If swapping captain and new captain is existing roster member, update their captain status
-    if is_swapping_captain and transfer_in.new_captain_id != transfer_in.climber_in_id:
-        supabase.table("team_roster").update({"is_captain": True}).eq(
+    # If swapping captain, update their captain status in roster and history
+    if is_swapping_captain:
+        # 1. Mark current captain as NOT captain in roster
+        supabase.table("team_roster").update({"is_captain": False}).eq(
             "team_id", str(team_id)
-        ).eq("climber_id", transfer_in.new_captain_id).is_(
-            "removed_at", "null"
+        ).eq("is_captain", True).is_("removed_at", "null").execute()
+
+        # 2. If new captain is an EXISTING member (not the one being added now), update their status
+        if transfer_in.new_captain_id != transfer_in.climber_in_id:
+            supabase.table("team_roster").update({"is_captain": True}).eq(
+                "team_id", str(team_id)
+            ).eq("climber_id", transfer_in.new_captain_id).is_(
+                "removed_at", "null"
+            ).execute()
+
+        # 3. Record captain change in history
+        supabase.table("captain_history").update({"replaced_at": history_ts}).eq(
+            "team_id", str(team_id)
+        ).is_("replaced_at", "null").execute()
+
+        supabase.table("captain_history").insert(
+            {
+                "team_id": str(team_id),
+                "climber_id": transfer_in.new_captain_id,
+                "set_at": history_ts,
+            }
         ).execute()
 
     # Record the transfer
@@ -920,6 +1106,9 @@ def create_transfer(
         "after_event_id": transfer_in.after_event_id,
         "climber_out_id": transfer_in.climber_out_id,
         "climber_in_id": transfer_in.climber_in_id,
+        "created_at": datetime.now(
+            timezone.utc
+        ).isoformat(),  # Use actual now for metadata
     }
 
     # cleanup any reverted transfers that would cause a unique constraint violation
@@ -1006,30 +1195,44 @@ def revert_transfer(
             raise HTTPException(status_code=400, detail="Transfer window has closed")
 
     # Revert all transfers for this event
-    now = datetime.now(timezone.utc).isoformat()
-
     for transfer in transfer_response.data:
-        # Remove the new climber
-        supabase.table("team_roster").update({"removed_at": now}).eq(
+        # 1. DELETE the new climber entry (it was never truly "active" for a scored event if reverting)
+        # Actually, to be safe and keep audit trail, we might keep it but it's cleaner to delete if it hasn't participated in an event.
+        # But wait, create_transfer sets removed_at/added_at.
+
+        # Proper reversion:
+        # - Remove the entry for climber_in
+        # - Restore removed_at=NULL for climber_out
+
+        supabase.table("team_roster").delete().eq("team_id", str(team_id)).eq(
+            "climber_id", transfer["climber_in_id"]
+        ).is_("removed_at", "null").execute()
+
+        supabase.table("team_roster").update({"removed_at": None}).eq(
             "team_id", str(team_id)
-        ).eq("climber_id", transfer["climber_in_id"]).is_(
-            "removed_at", "null"
+        ).eq("climber_id", transfer["climber_out_id"]).execute()
+
+        # 2. Revert captain history if it was changed
+        # We need to find if this transfer caused a captain change.
+        # create_transfer sets set_at and replaced_at to history_ts (event_date + 1s).
+
+        event_time = TypeAdapter(datetime).validate_python(event["date"])
+        history_ts = (event_time + timedelta(seconds=1)).isoformat()
+
+        # Delete the "new" captain history record
+        supabase.table("captain_history").delete().eq("team_id", str(team_id)).eq(
+            "set_at", history_ts
         ).execute()
 
-        # Re-add the old climber
-        supabase.table("team_roster").insert(
-            {
-                "team_id": str(team_id),
-                "climber_id": transfer["climber_out_id"],
-                "is_captain": False,  # Will need to set captain manually
-                "added_at": now,
-            }
-        ).execute()
+        # Restore the "old" captain's replaced_at to NULL
+        supabase.table("captain_history").update({"replaced_at": None}).eq(
+            "team_id", str(team_id)
+        ).eq("replaced_at", history_ts).execute()
 
-        # Mark transfer as reverted
-        supabase.table("team_transfers").update({"reverted_at": now}).eq(
-            "id", transfer["id"]
-        ).execute()
+        # 3. Mark transfer as reverted
+        supabase.table("team_transfers").update(
+            {"reverted_at": datetime.now(timezone.utc).isoformat()}
+        ).eq("id", transfer["id"]).execute()
 
     return {"message": "Transfer(s) reverted successfully"}
 

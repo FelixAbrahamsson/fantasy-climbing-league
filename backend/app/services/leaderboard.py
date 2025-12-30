@@ -1,10 +1,11 @@
 import logging
+from datetime import datetime
 from typing import List
 from uuid import UUID
 
 from app.db.supabase import supabase
 from app.services.scoring import calculate_climber_score
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,22 @@ class LeaderboardEntry(BaseModel):
 def calculate_team_score_for_event(team_id: str, event_id: int) -> int:
     """Calculate a team's score for a specific event."""
     try:
-        # Get the event date to determine historical roster/captain
+        # Get the event date and league info
+        team = (
+            supabase.table("fantasy_teams")
+            .select("league_id, leagues(captain_multiplier)")
+            .eq("id", team_id)
+            .single()
+            .execute()
+        )
+
+        if not team.data:
+            return 0
+
+        league = team.data.get("leagues") or {}
+        captain_multiplier = league.get("captain_multiplier", 1.2)
+        date_adapter = TypeAdapter(datetime)
+
         event = (
             supabase.table("events")
             .select("date")
@@ -34,77 +50,81 @@ def calculate_team_score_for_event(team_id: str, event_id: int) -> int:
         if not event.data:
             return 0
 
-        event_date = event.data["date"]
+        event_date = date_adapter.validate_python(event.data["date"])
 
-        # Get team roster at event time (climbers added before event, not removed or removed after event)
-        roster = (
+        # Get all roster entries for this team to find the active ones
+        roster_response = (
             supabase.table("team_roster")
-            .select("climber_id")
+            .select("climber_id, is_captain, added_at, removed_at")
             .eq("team_id", team_id)
-            .lte("added_at", event_date)
             .execute()
         )
 
-        if not roster.data:
+        if not roster_response.data:
             return 0
 
-        # Filter roster to only include those not removed before event
-        active_roster = []
-        for entry in roster.data:
-            # Re-query to check removed_at (Supabase doesn't easily do OR with NULL)
-            detail = (
-                supabase.table("team_roster")
-                .select("climber_id, removed_at")
-                .eq("team_id", team_id)
-                .eq("climber_id", entry["climber_id"])
-                .lte("added_at", event_date)
-                .execute()
+        active_climber_ids = []
+        current_captain_id_for_event = None
+        for r in roster_response.data:
+            added_at = date_adapter.validate_python(r["added_at"])
+            removed_at = (
+                date_adapter.validate_python(r["removed_at"])
+                if r.get("removed_at")
+                else None
             )
-            if detail.data:
-                for d in detail.data:
-                    # Include if not removed, or removed after event
-                    if d.get("removed_at") is None or d["removed_at"] > event_date:
-                        active_roster.append(d["climber_id"])
-                        break
 
-        if not active_roster:
+            if added_at <= event_date and (not removed_at or removed_at > event_date):
+                active_climber_ids.append(r["climber_id"])
+                if r.get("is_captain"):
+                    current_captain_id_for_event = r["climber_id"]
+
+        if not active_climber_ids:
             return 0
 
-        # Get captain at event time from captain_history
-        captain_id = None
-        captain_history = (
+        # Get captain history to find the active captain at event time
+        captain_history_response = (
             supabase.table("captain_history")
-            .select("climber_id")
+            .select("climber_id, set_at, replaced_at")
             .eq("team_id", team_id)
-            .lte("set_at", event_date)
-            .order("set_at", desc=True)
-            .limit(1)
             .execute()
         )
 
-        if captain_history.data:
-            captain_id = captain_history.data[0]["climber_id"]
+        captain_id = None
+        for ch in captain_history_response.data or []:
+            set_at = date_adapter.validate_python(ch["set_at"])
+            replaced_at = (
+                date_adapter.validate_python(ch["replaced_at"])
+                if ch.get("replaced_at")
+                else None
+            )
+
+            if set_at <= event_date and (not replaced_at or replaced_at > event_date):
+                captain_id = ch["climber_id"]
+                break
+
+        if captain_id is None:
+            captain_id = current_captain_id_for_event
+
+        # Bulk fetch results for all active climbers
+        results_response = (
+            supabase.table("event_results")
+            .select("climber_id, rank")
+            .eq("event_id", event_id)
+            .in_("climber_id", active_climber_ids)
+            .execute()
+        )
 
         total_score = 0
+        results_map = {
+            r["climber_id"]: r["rank"] for r in (results_response.data or [])
+        }
 
-        for climber_id in active_roster:
-            try:
-                result = (
-                    supabase.table("event_results")
-                    .select("rank, score")
-                    .eq("event_id", event_id)
-                    .eq("climber_id", climber_id)
-                    .execute()
-                )
-
-                if result.data and len(result.data) > 0:
-                    result_data = result.data[0]
-                    is_captain = climber_id == captain_id
-                    score = calculate_climber_score(result_data["rank"], is_captain)
-                    total_score += score
-            except Exception as e:
-                logger.warning(f"Error fetching result for climber {climber_id}: {e}")
-                continue
+        for climber_id in active_climber_ids:
+            rank = results_map.get(climber_id)
+            if rank is not None:
+                is_captain = climber_id == captain_id
+                multiplier = captain_multiplier if is_captain else 1.0
+                total_score += calculate_climber_score(rank, multiplier)
 
         return total_score
     except Exception as e:

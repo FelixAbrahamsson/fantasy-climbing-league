@@ -80,7 +80,9 @@ export function TransferSection({
     setSelectedEventId(eventId);
     setClimberOutId(null);
     setClimberInId(null);
-    setNewCaptainId(null);
+    // Default to current captain
+    const currentCaptain = roster.find((r) => r.is_captain);
+    setNewCaptainId(currentCaptain?.climber_id || null);
     setError("");
     setShowModal(true);
   };
@@ -104,8 +106,7 @@ export function TransferSection({
         after_event_id: selectedEventId,
         climber_out_id: climberOutId,
         climber_in_id: climberInId,
-        new_captain_id:
-          isSwappingCaptain() && newCaptainId ? newCaptainId : undefined,
+        new_captain_id: newCaptainId || undefined,
       });
       setShowModal(false);
       await loadData();
@@ -224,39 +225,6 @@ export function TransferSection({
         <p className="no-transfers">No transfer windows available</p>
       )}
 
-      {/* Change Captain */}
-      <div className="captain-change-section">
-        <h4>
-          <Crown size={14} /> Change Captain
-        </h4>
-        <div className="captain-options">
-          {roster.map((r) => {
-            const climber = getRosterClimber(r.climber_id);
-            if (!climber) return null;
-            return (
-              <button
-                key={r.climber_id}
-                className={`captain-btn ${r.is_captain ? "current" : ""}`}
-                onClick={async () => {
-                  if (!r.is_captain) {
-                    try {
-                      await teamsAPI.setCaptain(teamId, r.climber_id);
-                      onTransferComplete();
-                    } catch (err) {
-                      console.error("Failed to set captain:", err);
-                    }
-                  }
-                }}
-                disabled={r.is_captain}
-              >
-                {climber.name}
-                {r.is_captain && <Crown size={12} />}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Transfer Modal */}
       {showModal && (
         <div
@@ -282,7 +250,14 @@ export function TransferSection({
                       }`}
                       onClick={() => {
                         setClimberOutId(r.climber_id);
-                        setNewCaptainId(null);
+                        if (r.is_captain) {
+                          setNewCaptainId(null);
+                        } else {
+                          const currentCaptain = roster.find(
+                            (cr) => cr.is_captain
+                          );
+                          setNewCaptainId(currentCaptain?.climber_id || null);
+                        }
                       }}
                     >
                       <span
@@ -326,7 +301,7 @@ export function TransferSection({
               </div>
             )}
 
-            {isSwappingCaptain() && climberInId && (
+            {climberInId && (
               <div className="transfer-step captain-step">
                 <label>
                   <Crown size={14} /> Select new captain:
