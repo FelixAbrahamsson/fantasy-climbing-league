@@ -1,6 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Crown, Plus, Minus, Check } from "lucide-react";
+import {
+  ArrowLeft,
+  Crown,
+  Plus,
+  Minus,
+  Check,
+  Search,
+  Filter,
+} from "lucide-react";
 import {
   teamsAPI,
   climbersAPI,
@@ -23,6 +31,8 @@ export function TeamSelection() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState<string>("");
 
   useEffect(() => {
     if (teamId) {
@@ -109,9 +119,30 @@ export function TeamSelection() {
     return tierCounts[tier] >= tierCfg.max_per_team;
   };
 
+  const uniqueCountries = useMemo(() => {
+    const countries = new Set(
+      availableClimbers
+        .map((c) => c.country)
+        .filter((c): c is string => c !== null)
+    );
+    return Array.from(countries).sort();
+  }, [availableClimbers]);
+
   // Sort climbers by ranking (ranked athletes first, then unranked alphabetically)
+  // And filter by search/country
   const sortedClimbers = useMemo(() => {
-    return [...availableClimbers].sort((a, b) => {
+    let filtered = availableClimbers;
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((c) => c.name.toLowerCase().includes(query));
+    }
+
+    if (selectedCountry) {
+      filtered = filtered.filter((c) => c.country === selectedCountry);
+    }
+
+    return [...filtered].sort((a, b) => {
       const rankA = rankings.get(a.id);
       const rankB = rankings.get(b.id);
 
@@ -126,7 +157,7 @@ export function TeamSelection() {
       // Neither has ranking - sort alphabetically
       return a.name.localeCompare(b.name);
     });
-  }, [availableClimbers, rankings]);
+  }, [availableClimbers, rankings, searchQuery, selectedCountry]);
 
   const isSelected = (climberId: number) =>
     selectedRoster.some((r) => r.climber_id === climberId);
@@ -306,6 +337,32 @@ export function TeamSelection() {
           {/* Available Climbers */}
           <section className="climbers-section">
             <h2>Available Climbers</h2>
+
+            <div className="filters-container">
+              <div className="search-box">
+                <Search size={18} className="search-icon" />
+                <input
+                  type="text"
+                  placeholder="Search athletes..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div className="filter-box">
+                <Filter size={18} className="filter-icon" />
+                <select
+                  value={selectedCountry}
+                  onChange={(e) => setSelectedCountry(e.target.value)}
+                >
+                  <option value="">All Countries</option>
+                  {uniqueCountries.map((country) => (
+                    <option key={country} value={country}>
+                      {country}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
             <div className="climbers-list">
               {sortedClimbers.map((climber) => (

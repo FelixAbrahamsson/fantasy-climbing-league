@@ -1,5 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
-import { ArrowRightLeft, Undo2, Crown, Calendar } from "lucide-react";
+import {
+  ArrowRightLeft,
+  Undo2,
+  Crown,
+  Calendar,
+  Search,
+  Filter,
+} from "lucide-react";
 import { teamsAPI, leaguesAPI } from "../services/api";
 import type { Transfer, Climber, Event, TierConfig, League } from "../types";
 import "./TransferSection.css";
@@ -35,6 +42,8 @@ export function TransferSection({
   const [newCaptainId, setNewCaptainId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState<string>("");
 
   useEffect(() => {
     loadData();
@@ -123,6 +132,8 @@ export function TransferSection({
     setSelectedEventId(eventId);
     setClimberOutId(null);
     setClimberInId(null);
+    setSearchQuery("");
+    setSelectedCountry("");
     // Default to current captain
     const currentCaptain = roster.find((r) => r.is_captain);
     setNewCaptainId(currentCaptain?.climber_id || null);
@@ -198,6 +209,16 @@ export function TransferSection({
   const sortedNotInRoster = useMemo(() => {
     return availableClimbers
       .filter((c) => !rosterClimberIds.includes(c.id))
+      .filter((c) => {
+        if (searchQuery) {
+          if (!c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+            return false;
+        }
+        if (selectedCountry) {
+          if (c.country !== selectedCountry) return false;
+        }
+        return true;
+      })
       .sort((a, b) => {
         const rankA = rankings.get(a.id);
         const rankB = rankings.get(b.id);
@@ -206,7 +227,22 @@ export function TransferSection({
         if (rankB !== undefined) return 1;
         return a.name.localeCompare(b.name);
       });
-  }, [availableClimbers, rosterClimberIds, rankings]);
+  }, [
+    availableClimbers,
+    rosterClimberIds,
+    rankings,
+    searchQuery,
+    selectedCountry,
+  ]);
+
+  const uniqueCountries = useMemo(() => {
+    const countries = new Set(
+      availableClimbers
+        .map((c) => c.country)
+        .filter((c): c is string => c !== null)
+    );
+    return Array.from(countries).sort();
+  }, [availableClimbers]);
 
   const availableEvents = getAvailableTransferEvents();
   const pendingTransfers = getPendingTransfers();
@@ -361,6 +397,31 @@ export function TransferSection({
             {climberOutId && (
               <div className="transfer-step">
                 <label>Select replacement player:</label>
+                <div className="filters-row">
+                  <div className="search-box">
+                    <Search size={16} className="search-icon" />
+                    <input
+                      type="text"
+                      placeholder="Search..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <div className="filter-box">
+                    <Filter size={16} className="filter-icon" />
+                    <select
+                      value={selectedCountry}
+                      onChange={(e) => setSelectedCountry(e.target.value)}
+                    >
+                      <option value="">All Countries</option>
+                      {uniqueCountries.map((country) => (
+                        <option key={country} value={country}>
+                          {country}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 <div className="player-grid scrollable">
                   {sortedNotInRoster.map((climber) => (
                     <button
