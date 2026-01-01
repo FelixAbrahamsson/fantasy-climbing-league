@@ -44,13 +44,13 @@ async def populate_season_data(
     Args:
         year: Season year (2024, 2025, or 2026)
         world_cups_only: If True, only sync World Cup/Championship events
-        disciplines: List of disciplines to sync ('boulder', 'lead'). None = all supported
+        disciplines: List of disciplines to sync ('boulder', 'lead', 'speed'). None = all supported
 
     Returns:
         Dictionary with counts of synced data
     """
     if disciplines is None:
-        disciplines = ["boulder", "lead"]
+        disciplines = ["boulder", "lead", "speed"]
 
     client = IFSCClient()
     results = {"events": 0, "categories": 0, "errors": []}

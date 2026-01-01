@@ -16,7 +16,7 @@ export interface League {
   id: string;
   name: string;
   gender: "men" | "women";
-  discipline: "boulder" | "lead";
+  discipline: "boulder" | "lead" | "speed";
   admin_id: string;
   invite_code: string | null;
   created_at: string;
@@ -30,7 +30,7 @@ export interface League {
 export interface LeagueCreate {
   name: string;
   gender: "men" | "women";
-  discipline: "boulder" | "lead";
+  discipline: "boulder" | "lead" | "speed";
   event_ids?: number[];
   transfers_per_event?: number;
   team_size?: number;
@@ -67,7 +67,7 @@ export interface Event {
   id: number;
   name: string;
   date: string;
-  discipline: "boulder" | "lead";
+  discipline: "boulder" | "lead" | "speed";
   gender: "men" | "women";
   status: "upcoming" | "in_progress" | "completed";
 }

@@ -17,7 +17,9 @@ import "./CreateLeague.css";
 export function CreateLeague() {
   const [name, setName] = useState("");
   const [gender, setGender] = useState<"men" | "women">("men");
-  const [discipline, setDiscipline] = useState<"boulder" | "lead">("boulder");
+  const [discipline, setDiscipline] = useState<"boulder" | "lead" | "speed">(
+    "boulder"
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [events, setEvents] = useState<Event[]>([]);
@@ -193,6 +195,16 @@ export function CreateLeague() {
                   >
                     <span className="toggle-icon">🧗</span>
                     Lead
+                  </button>
+                  <button
+                    type="button"
+                    className={`toggle-btn ${
+                      discipline === "speed" ? "active" : ""
+                    }`}
+                    onClick={() => setDiscipline("speed")}
+                  >
+                    <span className="toggle-icon">⚡</span>
+                    Speed
                   </button>
                 </div>
               </div>

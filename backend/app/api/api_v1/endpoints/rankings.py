@@ -19,6 +19,8 @@ CUWR_IDS = {
     ("boulder", "men"): 3,
     ("lead", "women"): 5,
     ("boulder", "women"): 7,
+    ("speed", "men"): 2,
+    ("speed", "women"): 6,
 }
 
 
@@ -44,7 +46,9 @@ class SyncResponse(BaseModel):
 @router.post("/sync", response_model=SyncResponse)
 async def sync_rankings(
     season: int = Query(..., ge=2020, le=2030, description="Season year to sync"),
-    discipline: Literal["boulder", "lead"] = Query(..., description="Discipline"),
+    discipline: Literal["boulder", "lead", "speed"] = Query(
+        ..., description="Discipline"
+    ),
     gender: Literal["men", "women"] = Query(..., description="Gender category"),
 ):
     """
@@ -123,7 +127,7 @@ async def sync_rankings(
 
 @router.get("/{discipline}/{gender}/{season}", response_model=list[RankingEntry])
 async def get_rankings(
-    discipline: Literal["boulder", "lead"],
+    discipline: Literal["boulder", "lead", "speed"],
     gender: Literal["men", "women"],
     season: int,
     limit: int = Query(100, ge=1, le=500),
@@ -163,7 +167,7 @@ async def get_rankings(
 
 @router.get("/{discipline}/{gender}/{season}/tier/{climber_id}")
 async def get_athlete_tier(
-    discipline: Literal["boulder", "lead"],
+    discipline: Literal["boulder", "lead", "speed"],
     gender: Literal["men", "women"],
     season: int,
     climber_id: int,

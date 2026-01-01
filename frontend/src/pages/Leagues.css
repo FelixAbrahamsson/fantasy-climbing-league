@@ -99,6 +99,11 @@
   color: #60a5fa;
 }
 
+.badge-speed {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
 .badge-men {
   background: rgba(16, 185, 129, 0.2);
   color: var(--color-success);

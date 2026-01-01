@@ -387,14 +387,16 @@ def parse_discipline(kind: str) -> Optional[str]:
         kind: IFSC discipline kind ('boulder', 'lead', 'speed', etc.)
 
     Returns:
-        Our schema value ('boulder', 'lead') or None if not supported
+        Our schema value ('boulder', 'lead', 'speed') or None if not supported
     """
     kind_lower = kind.lower()
     if kind_lower == "boulder":
         return "boulder"
     elif kind_lower == "lead":
         return "lead"
-    # Speed and combined are not currently supported in our schema
+    elif kind_lower == "speed":
+        return "speed"
+    # Combined is not currently supported in our schema
     return None
 
 

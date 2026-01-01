@@ -24,6 +24,8 @@ CUWR_COMBINATIONS = [
     ("boulder", "women"),
     ("lead", "men"),
     ("lead", "women"),
+    ("speed", "men"),
+    ("speed", "women"),
 ]
 
 

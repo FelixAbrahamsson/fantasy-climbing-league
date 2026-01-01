@@ -8,7 +8,7 @@ from pydantic import BaseModel
 class EventBase(BaseModel):
     name: str
     date: datetime
-    discipline: Literal["boulder", "lead"]
+    discipline: Literal["boulder", "lead", "speed"]
     gender: Literal["men", "women"]
 
 

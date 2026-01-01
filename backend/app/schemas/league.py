@@ -31,7 +31,7 @@ DEFAULT_TIER_CONFIG_WRAPPER = TierConfigWrapper(tiers=DEFAULT_TIER_CONFIG)
 class LeagueBase(BaseModel):
     name: str = Field(..., min_length=3, max_length=50)
     gender: Literal["men", "women"]
-    discipline: Literal["boulder", "lead"]
+    discipline: Literal["boulder", "lead", "speed"]
 
 
 class LeagueCreate(LeagueBase):
