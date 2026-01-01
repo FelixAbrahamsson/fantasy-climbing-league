@@ -113,14 +113,20 @@ export function TransferSection({
 
     const latestCompletedEvent = completedEvents[completedEvents.length - 1];
 
-    // 2. Check how many transfers have been made for this event
+    // 2. Check how many non-free transfers have been made for this event
     const transfersUsed = transfers.filter(
-      (t) => t.after_event_id === latestCompletedEvent.id && !t.reverted_at
+      (t) =>
+        t.after_event_id === latestCompletedEvent.id &&
+        !t.reverted_at &&
+        !t.is_free
     ).length;
 
     const transfersAllowed = league?.transfers_per_event ?? 1;
 
-    if (transfersUsed >= transfersAllowed) return [];
+    // We still return the event even if transfersUsed >= allowed, because
+    // the user might want to make a FREE transfer (unregistered athlete).
+    // The "Make Transfer" button or modal logic should handle the specific case
+    // where a PAID transfer is attempted but no paid slots are left.
 
     // 3. Check if the NEXT event has already started
     const latestIndex = events.findIndex(
@@ -358,7 +364,8 @@ export function TransferSection({
           <h4>Make a Transfer</h4>
           {availableEvents.map((event) => {
             const transfersUsed = transfers.filter(
-              (t) => t.after_event_id === event.id && !t.reverted_at
+              (t) =>
+                t.after_event_id === event.id && !t.reverted_at && !t.is_free
             ).length;
             const transfersAllowed = league?.transfers_per_event ?? 1;
 
@@ -495,12 +502,49 @@ export function TransferSection({
                     const isUnregistered =
                       Object.keys(registrationStatus).length > 0 &&
                       registrationStatus[climber.id] === false;
+
+                    // Check if we can select this climber
+                    const transfersAllowed = league?.transfers_per_event ?? 1;
+
+                    // Filter transfers for THIS event
+                    // Note: This filter needs to be robust.
+                    const paidTransfersUsed = transfers.filter(
+                      (t) =>
+                        selectedEvent &&
+                        t.after_event_id === selectedEvent.id &&
+                        !t.reverted_at &&
+                        !t.is_free
+                    ).length;
+
+                    // Determine if the CURRENT proposed transfer would be free
+                    // It is free if the CLIMBER OUT is unregistered
+                    const climberOut = roster.find(
+                      (r) => r.climber_id === climberOutId
+                    );
+                    const isClimberOutUnregistered =
+                      climberOut &&
+                      registrationStatus[climberOut.climber_id] === false;
+                    const isProposedTransferFree = isClimberOutUnregistered;
+
+                    // Disable if:
+                    // 1. It's a PAID transfer (climber out is registered)
+                    // 2. AND we have reached the limit
+                    // 3. AND we are not just re-selecting the same climber (though loop is over available)
+                    const limitReached = paidTransfersUsed >= transfersAllowed;
+                    const isDisabled =
+                      !isProposedTransferFree &&
+                      limitReached &&
+                      climberInId !== climber.id;
+
                     return (
                       <button
                         key={climber.id}
+                        disabled={isDisabled}
                         className={`player-btn ${
                           climberInId === climber.id ? "selected" : ""
-                        } ${isUnregistered ? "unregistered" : ""}`}
+                        } ${isUnregistered ? "unregistered" : ""} ${
+                          isDisabled ? "disabled" : ""
+                        }`}
                         onClick={() => setClimberInId(climber.id)}
                         title={
                           isUnregistered

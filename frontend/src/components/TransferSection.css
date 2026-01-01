@@ -418,3 +418,16 @@
 .checkbox-filter-row:hover {
   color: var(--color-text-primary);
 }
+
+/* Disabled player styling */
+.player-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.8);
+  pointer-events: none;
+}
+
+.player-btn.disabled:hover {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border);
+}

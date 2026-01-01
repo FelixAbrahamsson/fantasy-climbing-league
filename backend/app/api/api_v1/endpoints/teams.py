@@ -1,6 +1,9 @@
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+
+logger = logging.getLogger(__name__)
 
 from app.core.auth import get_current_user_id
 from app.db.supabase import supabase
@@ -66,7 +69,22 @@ def validate_roster_tier_limits(
         .execute()
     )
 
-    rankings = {r["climber_id"]: r["rank"] for r in (rankings_response.data or [])}
+    rankings_data = rankings_response.data or []
+
+    # If no rankings found for current season, try previous season
+    if not rankings_data:
+        rankings_response = (
+            supabase.table("athlete_rankings")
+            .select("climber_id, rank")
+            .eq("discipline", discipline)
+            .eq("gender", gender)
+            .eq("season", current_season - 1)
+            .in_("climber_id", climber_ids)
+            .execute()
+        )
+        rankings_data = rankings_response.data or []
+
+    rankings = {r["climber_id"]: r["rank"] for r in rankings_data}
 
     # Count athletes per tier
     tier_counts: dict[str, int] = {}
@@ -949,7 +967,8 @@ def create_transfer(
         next_event_date = TypeAdapter(datetime).validate_python(next_event_data["date"])
         days_until_next = (next_event_date - datetime.now(timezone.utc)).days
 
-        if days_until_next <= 14:
+        # Only allow free transfers if event is within 64 days (was 14)
+        if days_until_next <= 64:
             # Check if climber_out is registered for next event
             try:
                 import asyncio
@@ -958,8 +977,10 @@ def create_transfer(
 
                 async def check_registration():
                     client = IFSCClient()
+                    # IFSC uses truncated event IDs for registrations endpoint
+                    truncated_event_id = next_event_data["id"] // 10
                     registrations = await client.get_event_registrations(
-                        next_event_data["id"]
+                        truncated_event_id
                     )
                     registered_ids = {reg.athlete_id for reg in registrations}
                     return transfer_in.climber_out_id not in registered_ids
@@ -972,20 +993,36 @@ def create_transfer(
                     loop.close()
 
                 if is_free_transfer:
-                    logger.info(
-                        f"Free transfer: climber {transfer_in.climber_out_id} not registered for event {next_event_data['id']}"
-                    )
+                    pass
             except Exception as e:
-                logger.warning(f"Could not check registration status: {e}")
                 # If we can't check, treat as regular transfer
                 is_free_transfer = False
 
-    # Only check transfer limit if not a free transfer
-    if not is_free_transfer and len(existing_transfers.data or []) >= transfers_allowed:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Maximum {transfers_allowed} transfer(s) allowed per event",
-        )
+    # Only check transfer limit if not a free transfer (count non-free existing transfers)
+    if not is_free_transfer:
+        non_free_transfers_count = 0
+        if existing_transfers.data:
+            for t in existing_transfers.data:
+                # Check if this existing transfer was free (need to fetch is_free or filter in query)
+                # Since we only selected 'id', we need to check is_free
+                pass
+
+        # Better approach: Filter in the query itself to get count of non-free transfers
+        existing_non_free_count = (
+            supabase.table("team_transfers")
+            .select("id", count="exact")
+            .eq("team_id", str(team_id))
+            .eq("after_event_id", transfer_in.after_event_id)
+            .is_("reverted_at", "null")
+            .eq("is_free", False)  # Only count paid transfers
+            .execute()
+        ).count or 0
+
+        if existing_non_free_count >= transfers_allowed:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Maximum {transfers_allowed} transfer(s) allowed per event",
+            )
 
     # Verify climber_out is in current roster
     roster_check = (
@@ -1139,6 +1176,7 @@ def create_transfer(
         "after_event_id": transfer_in.after_event_id,
         "climber_out_id": transfer_in.climber_out_id,
         "climber_in_id": transfer_in.climber_in_id,
+        "is_free": is_free_transfer,
         "created_at": datetime.now(
             timezone.utc
         ).isoformat(),  # Use actual now for metadata
@@ -1348,6 +1386,7 @@ def get_team_transfers(team_id: uuid.UUID):
                 "climber_in_id": t["climber_in_id"],
                 "created_at": t["created_at"],
                 "reverted_at": t.get("reverted_at"),
+                "is_free": t.get("is_free", False),
                 "climber_out_name": (
                     t.get("climber_out", {}).get("name")
                     if t.get("climber_out")

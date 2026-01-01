@@ -61,6 +61,8 @@ export interface RosterEntry {
 export interface TeamWithRoster extends Team {
   roster: Climber[];
   captain_id: number | null;
+  total_score?: number;
+  rank?: number;
 }
 
 export interface Event {
@@ -154,6 +156,7 @@ export interface Transfer {
   climber_in_id: number;
   created_at: string;
   reverted_at: string | null;
+  is_free?: boolean;
   climber_out_name?: string;
   climber_in_name?: string;
 }

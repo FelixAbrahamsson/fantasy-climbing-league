@@ -20,6 +20,7 @@ class TransferResponse(BaseModel):
     climber_in_id: int
     created_at: datetime
     reverted_at: Optional[datetime] = None
+    is_free: bool = False
     climber_out_name: Optional[str] = None
     climber_in_name: Optional[str] = None
 
