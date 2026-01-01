@@ -47,13 +47,17 @@ export function CreateLeague() {
         );
         setEvents(sortedEvents);
 
-        // Auto-select only World Cup and World Championship events by default
+        // Auto-select World Cup/Championship/Series events, exclude Youth
         const worldEvents = sortedEvents.filter((e) => {
           const nameLower = e.name.toLowerCase();
-          return (
+          const isWorldLevel =
             nameLower.includes("world") &&
-            (nameLower.includes("cup") || nameLower.includes("championship"))
-          );
+            (nameLower.includes("cup") ||
+              nameLower.includes("championship") ||
+              nameLower.includes("climbing series")); // New series name
+          const isYouth = nameLower.includes("youth");
+
+          return isWorldLevel && !isYouth;
         });
         setSelectedEventIds(worldEvents.map((e) => e.id));
       } catch (err) {
