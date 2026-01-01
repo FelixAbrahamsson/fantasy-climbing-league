@@ -1299,7 +1299,13 @@ def revert_transfer(
             break
 
     # STEP 1: Revert roster changes for each transfer
-    for transfer in transfer_response.data:
+    # Sort transfers descending by created_at (LIFO) to handle dependent transfers correctly
+    # e.g. if A->B then B->C, we must revert B->C first to restore B, then revert A->B
+    transfers_to_revert = sorted(
+        transfer_response.data, key=lambda t: t["created_at"], reverse=True
+    )
+
+    for transfer in transfers_to_revert:
         climber_in_id = transfer["climber_in_id"]
         climber_out_id = transfer["climber_out_id"]
 
