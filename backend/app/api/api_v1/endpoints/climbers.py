@@ -4,7 +4,8 @@ from typing import List
 
 from app.db.supabase import supabase
 from app.schemas.team import ClimberResponse
-from fastapi import APIRouter, HTTPException
+from app.services.ifsc_sdk import IFSCClient
+from fastapi import APIRouter, HTTPException, Query
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -38,6 +39,51 @@ def get_climbers(gender: str = None, active: bool = True):
             raise HTTPException(
                 status_code=503, detail="Database temporarily unavailable"
             )
+
+
+@router.get("/registration-status/{event_id}")
+async def get_registration_status(
+    event_id: int,
+    climber_ids: str = Query(..., description="Comma-separated list of climber IDs"),
+):
+    """
+    Check if athletes are registered for a specific event.
+
+    Args:
+        event_id: IFSC event ID
+        climber_ids: Comma-separated climber IDs to check
+
+    Returns:
+        Dictionary mapping climber_id -> is_registered
+    """
+    try:
+        # Parse climber IDs
+        ids = [int(cid.strip()) for cid in climber_ids.split(",") if cid.strip()]
+
+        if not ids:
+            return {"registrations": {}}
+
+        # IFSC uses truncated event IDs for the registrations endpoint
+        # e.g., 14080 (men) and 14081 (women) both use 1408
+        truncated_event_id = event_id // 10
+
+        # Fetch registrations from IFSC API
+        client = IFSCClient()
+        registrations = await client.get_event_registrations(truncated_event_id)
+
+        # Build set of registered athlete IDs
+        registered_ids = {reg.athlete_id for reg in registrations}
+
+        # Return status for each requested climber
+        result = {cid: cid in registered_ids for cid in ids}
+
+        return {"event_id": event_id, "registrations": result}
+
+    except Exception as e:
+        logger.error(f"Error fetching registration status for event {event_id}: {e}")
+        raise HTTPException(
+            status_code=503, detail=f"Could not fetch registration status: {str(e)}"
+        )
 
 
 @router.get("/{climber_id}", response_model=ClimberResponse)

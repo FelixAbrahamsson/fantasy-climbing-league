@@ -942,7 +942,46 @@ def create_transfer(
         .execute()
     )
 
-    if len(existing_transfers.data or []) >= transfers_allowed:
+    # Check if this is a free transfer (unregistered athlete + next event within 14 days)
+    is_free_transfer = False
+    if next_event.data and len(next_event.data) > 0:
+        next_event_data = next_event.data[0]
+        next_event_date = TypeAdapter(datetime).validate_python(next_event_data["date"])
+        days_until_next = (next_event_date - datetime.now(timezone.utc)).days
+
+        if days_until_next <= 14:
+            # Check if climber_out is registered for next event
+            try:
+                import asyncio
+
+                from app.services.ifsc_sdk import IFSCClient
+
+                async def check_registration():
+                    client = IFSCClient()
+                    registrations = await client.get_event_registrations(
+                        next_event_data["id"]
+                    )
+                    registered_ids = {reg.athlete_id for reg in registrations}
+                    return transfer_in.climber_out_id not in registered_ids
+
+                # Run async check synchronously
+                loop = asyncio.new_event_loop()
+                try:
+                    is_free_transfer = loop.run_until_complete(check_registration())
+                finally:
+                    loop.close()
+
+                if is_free_transfer:
+                    logger.info(
+                        f"Free transfer: climber {transfer_in.climber_out_id} not registered for event {next_event_data['id']}"
+                    )
+            except Exception as e:
+                logger.warning(f"Could not check registration status: {e}")
+                # If we can't check, treat as regular transfer
+                is_free_transfer = False
+
+    # Only check transfer limit if not a free transfer
+    if not is_free_transfer and len(existing_transfers.data or []) >= transfers_allowed:
         raise HTTPException(
             status_code=400,
             detail=f"Maximum {transfers_allowed} transfer(s) allowed per event",

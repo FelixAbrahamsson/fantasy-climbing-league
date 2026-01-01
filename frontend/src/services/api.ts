@@ -142,6 +142,13 @@ export const climbersAPI = {
   },
 
   getById: (id: number) => fetchAPI<Climber>(`/climbers/${id}`),
+
+  getRegistrationStatus: (eventId: number, climberIds: number[]) =>
+    fetchAPI<{ event_id: number; registrations: Record<number, boolean> }>(
+      `/climbers/registration-status/${eventId}?climber_ids=${climberIds.join(
+        ","
+      )}`
+    ),
 };
 
 // Events

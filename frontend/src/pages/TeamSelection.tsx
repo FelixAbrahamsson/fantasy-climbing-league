@@ -8,12 +8,14 @@ import {
   Check,
   Search,
   Filter,
+  AlertTriangle,
 } from "lucide-react";
 import {
   teamsAPI,
   climbersAPI,
   leaguesAPI,
   rankingsAPI,
+  eventsAPI,
 } from "../services/api";
 import type { RankingEntry } from "../services/api";
 import type { TeamWithRoster, Climber, RosterEntry, League } from "../types";
@@ -33,6 +35,12 @@ export function TeamSelection() {
   const [success, setSuccess] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCountry, setSelectedCountry] = useState<string>("");
+  const [registrationStatus, setRegistrationStatus] = useState<
+    Record<number, boolean>
+  >({});
+  const [nextEventId, setNextEventId] = useState<number | null>(null);
+  const [nextEventName, setNextEventName] = useState<string>("");
+  const [hideUnregistered, setHideUnregistered] = useState(true);
 
   useEffect(() => {
     if (teamId) {
@@ -60,15 +68,26 @@ export function TeamSelection() {
       const climbers = await climbersAPI.getAll(leagueData.gender);
       setAvailableClimbers(climbers);
 
-      // Load rankings for this season
-      const currentSeason = new Date().getFullYear();
+      // Load rankings for this season (try current year, fallback to previous)
+      const currentYear = new Date().getFullYear();
       try {
-        const rankingsData = await rankingsAPI.get(
+        let rankingsData = await rankingsAPI.get(
           leagueData.discipline,
           leagueData.gender,
-          currentSeason,
+          currentYear,
           500
         );
+
+        // If current year returns empty, try previous year
+        if (rankingsData.length === 0) {
+          rankingsData = await rankingsAPI.get(
+            leagueData.discipline,
+            leagueData.gender,
+            currentYear - 1,
+            500
+          );
+        }
+
         const rankingsMap = new Map<number, number>();
         rankingsData.forEach((r: RankingEntry) =>
           rankingsMap.set(r.climber_id, r.rank)
@@ -77,6 +96,41 @@ export function TeamSelection() {
       } catch {
         // Rankings may not be synced yet - that's okay
         console.warn("Could not load rankings");
+      }
+
+      // Load next event and registration status
+      try {
+        const allEvents = await eventsAPI.getAll({
+          discipline: leagueData.discipline,
+          gender: leagueData.gender,
+        });
+
+        // Find next upcoming event
+        const upcomingEvents = allEvents
+          .filter(
+            (e) => e.status === "upcoming" && new Date(e.date) > new Date()
+          )
+          .sort(
+            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+          );
+
+        if (upcomingEvents.length > 0) {
+          const nextEvent = upcomingEvents[0];
+          setNextEventId(nextEvent.id);
+          setNextEventName(nextEvent.name);
+
+          // Fetch registration status for all climbers
+          const climberIds = climbers.map((c) => c.id);
+          if (climberIds.length > 0) {
+            const statusResponse = await climbersAPI.getRegistrationStatus(
+              nextEvent.id,
+              climberIds
+            );
+            setRegistrationStatus(statusResponse.registrations);
+          }
+        }
+      } catch (err) {
+        console.warn("Could not load registration status:", err);
       }
     } catch (err) {
       setError("Failed to load team data");
@@ -142,6 +196,11 @@ export function TeamSelection() {
       filtered = filtered.filter((c) => c.country === selectedCountry);
     }
 
+    // Filter out unregistered athletes if checkbox is checked
+    if (hideUnregistered && Object.keys(registrationStatus).length > 0) {
+      filtered = filtered.filter((c) => registrationStatus[c.id] !== false);
+    }
+
     return [...filtered].sort((a, b) => {
       const rankA = rankings.get(a.id);
       const rankB = rankings.get(b.id);
@@ -157,7 +216,14 @@ export function TeamSelection() {
       // Neither has ranking - sort alphabetically
       return a.name.localeCompare(b.name);
     });
-  }, [availableClimbers, rankings, searchQuery, selectedCountry]);
+  }, [
+    availableClimbers,
+    rankings,
+    searchQuery,
+    selectedCountry,
+    hideUnregistered,
+    registrationStatus,
+  ]);
 
   const isSelected = (climberId: number) =>
     selectedRoster.some((r) => r.climber_id === climberId);
@@ -280,9 +346,17 @@ export function TeamSelection() {
                 {selectedRoster.map((entry) => {
                   const climber = getClimberById(entry.climber_id);
                   if (!climber) return null;
+                  const isUnregistered =
+                    nextEventId !== null &&
+                    registrationStatus[climber.id] === false;
 
                   return (
-                    <div key={entry.climber_id} className="roster-item">
+                    <div
+                      key={entry.climber_id}
+                      className={`roster-item ${
+                        isUnregistered ? "unregistered" : ""
+                      }`}
+                    >
                       <div className="climber-info">
                         <span
                           className={`tier-badge tier-${getAthleTier(
@@ -299,6 +373,15 @@ export function TeamSelection() {
                           <span className="climber-country">
                             {climber.country}
                           </span>
+                          {isUnregistered && (
+                            <span
+                              className="unregistered-badge"
+                              title={`Not registered for: ${nextEventName}`}
+                            >
+                              <AlertTriangle size={12} />
+                              Not Registered
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="roster-actions">
@@ -364,60 +447,88 @@ export function TeamSelection() {
               </div>
             </div>
 
-            <div className="climbers-list">
-              {sortedClimbers.map((climber) => (
-                <div
-                  key={climber.id}
-                  className={`climber-item ${
-                    isSelected(climber.id) ? "selected" : ""
-                  } ${
-                    isTierFull(climber.id) && !isSelected(climber.id)
-                      ? "tier-full"
-                      : ""
-                  }`}
-                >
-                  <div className="climber-info">
-                    <span
-                      className={`tier-badge tier-${getAthleTier(
-                        climber.id
-                      ).toLowerCase()}`}
-                    >
-                      {getAthleTier(climber.id)}
-                    </span>
-                    <span className="climber-flag">
-                      {getFlagEmoji(climber.country)}
-                    </span>
-                    <div>
-                      <span className="climber-name">{climber.name}</span>
-                      <span className="climber-country">{climber.country}</span>
-                    </div>
-                  </div>
+            {nextEventId && (
+              <label className="checkbox-filter-row">
+                <input
+                  type="checkbox"
+                  checked={hideUnregistered}
+                  onChange={(e) => setHideUnregistered(e.target.checked)}
+                />
+                Hide unregistered athletes
+              </label>
+            )}
 
-                  <button
-                    className={`add-btn ${
-                      isSelected(climber.id) ? "added" : ""
-                    }`}
-                    onClick={() => toggleClimber(climber.id)}
-                    disabled={
-                      !isSelected(climber.id) &&
-                      (selectedRoster.length >= teamSize ||
-                        isTierFull(climber.id))
-                    }
+            <div className="climbers-list">
+              {sortedClimbers.map((climber) => {
+                const isUnregistered =
+                  nextEventId !== null &&
+                  registrationStatus[climber.id] === false;
+
+                return (
+                  <div
+                    key={climber.id}
+                    className={`climber-item ${
+                      isSelected(climber.id) ? "selected" : ""
+                    } ${
+                      isTierFull(climber.id) && !isSelected(climber.id)
+                        ? "tier-full"
+                        : ""
+                    } ${isUnregistered ? "unregistered" : ""}`}
                   >
-                    {isSelected(climber.id) ? (
-                      <>
-                        <Check size={16} />
-                        Added
-                      </>
-                    ) : (
-                      <>
-                        <Plus size={16} />
-                        Add
-                      </>
-                    )}
-                  </button>
-                </div>
-              ))}
+                    <div className="climber-info">
+                      <span
+                        className={`tier-badge tier-${getAthleTier(
+                          climber.id
+                        ).toLowerCase()}`}
+                      >
+                        {getAthleTier(climber.id)}
+                      </span>
+                      <span className="climber-flag">
+                        {getFlagEmoji(climber.country)}
+                      </span>
+                      <div>
+                        <span className="climber-name">{climber.name}</span>
+                        <span className="climber-country">
+                          {climber.country}
+                        </span>
+                        {isUnregistered && (
+                          <span
+                            className="unregistered-badge"
+                            title={`Not registered for: ${nextEventName}`}
+                          >
+                            <AlertTriangle size={12} />
+                            Not Registered
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      className={`add-btn ${
+                        isSelected(climber.id) ? "added" : ""
+                      }`}
+                      onClick={() => toggleClimber(climber.id)}
+                      disabled={
+                        !isSelected(climber.id) &&
+                        (selectedRoster.length >= teamSize ||
+                          isTierFull(climber.id))
+                      }
+                    >
+                      {isSelected(climber.id) ? (
+                        <>
+                          <Check size={16} />
+                          Added
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={16} />
+                          Add
+                        </>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </section>
         </div>

@@ -41,15 +41,26 @@ export function TeamView() {
       const climbers = await climbersAPI.getAll(leagueData.gender);
       setAvailableClimbers(climbers);
 
-      // Load rankings for this season
-      const currentSeason = new Date().getFullYear();
+      // Load rankings for this season (try current year, fallback to previous)
+      const currentYear = new Date().getFullYear();
       try {
-        const rankingsData = await rankingsAPI.get(
+        let rankingsData = await rankingsAPI.get(
           leagueData.discipline,
           leagueData.gender,
-          currentSeason,
+          currentYear,
           500
         );
+
+        // If current year returns empty, try previous year
+        if (rankingsData.length === 0) {
+          rankingsData = await rankingsAPI.get(
+            leagueData.discipline,
+            leagueData.gender,
+            currentYear - 1,
+            500
+          );
+        }
+
         const rankingsMap = new Map<number, number>();
         rankingsData.forEach((r: RankingEntry) =>
           rankingsMap.set(r.climber_id, r.rank)

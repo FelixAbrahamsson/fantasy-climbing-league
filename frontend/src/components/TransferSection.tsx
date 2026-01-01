@@ -6,8 +6,9 @@ import {
   Calendar,
   Search,
   Filter,
+  AlertTriangle,
 } from "lucide-react";
-import { teamsAPI, leaguesAPI } from "../services/api";
+import { teamsAPI, leaguesAPI, climbersAPI } from "../services/api";
 import type { Transfer, Climber, Event, TierConfig, League } from "../types";
 import "./TransferSection.css";
 
@@ -44,6 +45,11 @@ export function TransferSection({
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCountry, setSelectedCountry] = useState<string>("");
+  const [registrationStatus, setRegistrationStatus] = useState<
+    Record<number, boolean>
+  >({});
+  const [nextEventName, setNextEventName] = useState<string>("");
+  const [hideUnregistered, setHideUnregistered] = useState(true);
 
   useEffect(() => {
     loadData();
@@ -67,6 +73,38 @@ export function TransferSection({
       setLoading(false);
     }
   };
+
+  // Fetch registration status for next event
+  useEffect(() => {
+    const fetchRegistrationStatus = async () => {
+      if (events.length === 0 || availableClimbers.length === 0) return;
+
+      // Find next upcoming event
+      const upcomingEvents = events
+        .filter((e) => e.status === "upcoming" && new Date(e.date) > new Date())
+        .sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+
+      if (upcomingEvents.length === 0) return;
+
+      const nextEvent = upcomingEvents[0];
+      setNextEventName(nextEvent.name);
+
+      try {
+        const climberIds = availableClimbers.map((c) => c.id);
+        const statusResponse = await climbersAPI.getRegistrationStatus(
+          nextEvent.id,
+          climberIds
+        );
+        setRegistrationStatus(statusResponse.registrations);
+      } catch (err) {
+        console.warn("Could not load registration status:", err);
+      }
+    };
+
+    fetchRegistrationStatus();
+  }, [events, availableClimbers]);
 
   const getAvailableTransferEvents = () => {
     // 1. Find the LATEST completed event
@@ -217,6 +255,10 @@ export function TransferSection({
         if (selectedCountry) {
           if (c.country !== selectedCountry) return false;
         }
+        // Filter out unregistered athletes if checkbox is checked
+        if (hideUnregistered && Object.keys(registrationStatus).length > 0) {
+          if (registrationStatus[c.id] === false) return false;
+        }
         return true;
       })
       .sort((a, b) => {
@@ -233,6 +275,8 @@ export function TransferSection({
     rankings,
     searchQuery,
     selectedCountry,
+    hideUnregistered,
+    registrationStatus,
   ]);
 
   const uniqueCountries = useMemo(() => {
@@ -361,12 +405,15 @@ export function TransferSection({
                 {roster.map((r) => {
                   const climber = getRosterClimber(r.climber_id);
                   if (!climber) return null;
+                  const isUnregistered =
+                    Object.keys(registrationStatus).length > 0 &&
+                    registrationStatus[climber.id] === false;
                   return (
                     <button
                       key={r.climber_id}
                       className={`player-btn ${
                         climberOutId === r.climber_id ? "selected" : ""
-                      }`}
+                      } ${isUnregistered ? "unregistered" : ""}`}
                       onClick={() => {
                         setClimberOutId(r.climber_id);
                         if (r.is_captain) {
@@ -378,6 +425,11 @@ export function TransferSection({
                           setNewCaptainId(currentCaptain?.climber_id || null);
                         }
                       }}
+                      title={
+                        isUnregistered
+                          ? `Not registered for: ${nextEventName}`
+                          : undefined
+                      }
                     >
                       <span
                         className={`tier-badge-sm tier-${getAthleTier(
@@ -388,6 +440,12 @@ export function TransferSection({
                       </span>
                       {climber.name}
                       {r.is_captain && <Crown size={12} />}
+                      {isUnregistered && (
+                        <AlertTriangle
+                          size={12}
+                          className="unregistered-icon"
+                        />
+                      )}
                     </button>
                   );
                 })}
@@ -422,25 +480,51 @@ export function TransferSection({
                     </select>
                   </div>
                 </div>
+                {Object.keys(registrationStatus).length > 0 && (
+                  <label className="checkbox-filter-row">
+                    <input
+                      type="checkbox"
+                      checked={hideUnregistered}
+                      onChange={(e) => setHideUnregistered(e.target.checked)}
+                    />
+                    Hide unregistered athletes
+                  </label>
+                )}
                 <div className="player-grid scrollable">
-                  {sortedNotInRoster.map((climber) => (
-                    <button
-                      key={climber.id}
-                      className={`player-btn ${
-                        climberInId === climber.id ? "selected" : ""
-                      }`}
-                      onClick={() => setClimberInId(climber.id)}
-                    >
-                      <span
-                        className={`tier-badge-sm tier-${getAthleTier(
-                          climber.id
-                        ).toLowerCase()}`}
+                  {sortedNotInRoster.map((climber) => {
+                    const isUnregistered =
+                      Object.keys(registrationStatus).length > 0 &&
+                      registrationStatus[climber.id] === false;
+                    return (
+                      <button
+                        key={climber.id}
+                        className={`player-btn ${
+                          climberInId === climber.id ? "selected" : ""
+                        } ${isUnregistered ? "unregistered" : ""}`}
+                        onClick={() => setClimberInId(climber.id)}
+                        title={
+                          isUnregistered
+                            ? `Not registered for: ${nextEventName}`
+                            : undefined
+                        }
                       >
-                        {getAthleTier(climber.id)}
-                      </span>
-                      {climber.name}
-                    </button>
-                  ))}
+                        <span
+                          className={`tier-badge-sm tier-${getAthleTier(
+                            climber.id
+                          ).toLowerCase()}`}
+                        >
+                          {getAthleTier(climber.id)}
+                        </span>
+                        {climber.name}
+                        {isUnregistered && (
+                          <AlertTriangle
+                            size={12}
+                            className="unregistered-icon"
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
