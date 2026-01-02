@@ -516,8 +516,8 @@ export function LeagueDashboard() {
                     before the start of each event.
                   </li>
                   <li>
-                    <strong>Reverting:</strong> You can revert transfers as long
-                    as the next event hasn't started.
+                    <strong>Permanent:</strong> Transfers cannot be undone once
+                    made, so choose wisely!
                   </li>
                 </ul>
               </div>

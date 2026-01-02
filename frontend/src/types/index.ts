@@ -155,7 +155,6 @@ export interface Transfer {
   climber_out_id: number;
   climber_in_id: number;
   created_at: string;
-  reverted_at: string | null;
   is_free?: boolean;
   climber_out_name?: string;
   climber_in_name?: string;

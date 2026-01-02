@@ -1,0 +1,20 @@
+# Supabase Project Configuration
+project_id = "ygizejiyaoqfknmbjhvh"
+
+[api]
+enabled = true
+# Port to use for the API URL.
+port = 54321
+
+[db]
+# Port to use for the local database URL.
+port = 54322
+
+[studio]
+enabled = true
+# Port to use for Supabase Studio.
+port = 54323
+
+[functions]
+# Set the local directory for Edge Functions
+directory = "./supabase/functions"

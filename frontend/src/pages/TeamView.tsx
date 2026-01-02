@@ -8,7 +8,7 @@ import {
   rankingsAPI,
 } from "../services/api";
 import type { RankingEntry } from "../services/api";
-import type { TeamWithRoster, Climber, RosterEntry, League } from "../types";
+import type { TeamWithRoster, Climber, League } from "../types";
 import { TransferSection } from "../components/TransferSection";
 import { getFlagEmoji } from "../utils/countryFlags";
 import "./TeamView.css";

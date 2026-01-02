@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   ArrowRightLeft,
-  Undo2,
   Crown,
   Calendar,
   Search,
@@ -113,16 +112,6 @@ export function TransferSection({
 
     const latestCompletedEvent = completedEvents[completedEvents.length - 1];
 
-    // 2. Check how many non-free transfers have been made for this event
-    const transfersUsed = transfers.filter(
-      (t) =>
-        t.after_event_id === latestCompletedEvent.id &&
-        !t.reverted_at &&
-        !t.is_free
-    ).length;
-
-    const transfersAllowed = league?.transfers_per_event ?? 1;
-
     // We still return the event even if transfersUsed >= allowed, because
     // the user might want to make a FREE transfer (unregistered athlete).
     // The "Make Transfer" button or modal logic should handle the specific case
@@ -145,11 +134,9 @@ export function TransferSection({
   };
 
   const getPendingTransfers = () => {
-    // A transfer is "pending" (reversible) ONLY if the window is still open.
+    // A transfer is "pending" if the window is still open.
     // That means the next event after the one the transfer followed hasn't started yet.
     return transfers.filter((t) => {
-      if (t.reverted_at) return false;
-
       const eventIndex = events.findIndex((e) => e.id === t.after_event_id);
       if (eventIndex === -1) return false;
 
@@ -216,15 +203,7 @@ export function TransferSection({
     }
   };
 
-  const handleRevertTransfer = async (afterEventId: number) => {
-    try {
-      await teamsAPI.revertTransfer(teamId, afterEventId);
-      await loadData();
-      onTransferComplete();
-    } catch (err) {
-      console.error("Failed to revert transfer:", err);
-    }
-  };
+  // Transfer revert functionality removed - transfers are now permanent
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("en-US", {
@@ -334,14 +313,6 @@ export function TransferSection({
               <div key={eventId} className="pending-group">
                 <div className="pending-group-header">
                   <span>After {event?.name || "Event"}</span>
-                  <button
-                    className="btn-undo"
-                    onClick={() => handleRevertTransfer(eventId)}
-                    title="Undo all transfers for this event"
-                  >
-                    <Undo2 size={14} />
-                    Undo All
-                  </button>
                 </div>
                 {eventTransfers.map((transfer) => (
                   <div key={transfer.id} className="pending-transfer">
@@ -364,8 +335,7 @@ export function TransferSection({
           <h4>Make a Transfer</h4>
           {availableEvents.map((event) => {
             const transfersUsed = transfers.filter(
-              (t) =>
-                t.after_event_id === event.id && !t.reverted_at && !t.is_free
+              (t) => t.after_event_id === event.id && !t.is_free
             ).length;
             const transfersAllowed = league?.transfers_per_event ?? 1;
 
@@ -512,7 +482,6 @@ export function TransferSection({
                       (t) =>
                         selectedEvent &&
                         t.after_event_id === selectedEvent.id &&
-                        !t.reverted_at &&
                         !t.is_free
                     ).length;
 
