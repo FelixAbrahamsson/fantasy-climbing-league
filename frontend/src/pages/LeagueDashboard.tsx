@@ -441,7 +441,7 @@ export function LeagueDashboard() {
                 <ul className="tier-list">
                   {league.tier_config.tiers.map((tier) => (
                     <li key={tier.name}>
-                      <strong>Tier {tier.name}:</strong> Runners ranked up to #
+                      <strong>Tier {tier.name}:</strong> Athletes ranked up to #
                       {tier.max_rank || "Any"}.
                       {tier.max_per_team
                         ? ` Max ${tier.max_per_team} per team.`
@@ -507,7 +507,9 @@ export function LeagueDashboard() {
                   <li>
                     <strong>Transfer Limit:</strong> You can make up to{" "}
                     <strong>{league.transfers_per_event}</strong> transfers
-                    after each event.
+                    after each event. You can freely transfer any athlete not
+                    signed up for the next event, if the event is 14 days away
+                    or less.
                   </li>
                   <li>
                     <strong>Roster Locks:</strong> Roster is locked 30 minutes

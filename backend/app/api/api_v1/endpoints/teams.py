@@ -950,8 +950,8 @@ def create_transfer(
         next_event_date = TypeAdapter(datetime).validate_python(next_event_data["date"])
         days_until_next = (next_event_date - datetime.now(timezone.utc)).days
 
-        # Only allow free transfers if event is within 64 days (was 14)
-        if days_until_next <= 64:
+        # Only allow free transfers if event is within 14 days
+        if days_until_next <= 14:
             # Check if climber_out is registered for next event
             try:
                 import asyncio
