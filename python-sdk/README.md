@@ -7,6 +7,8 @@ A Python SDK for Fantasy Climbing League that handles IFSC data synchronization 
 ```bash
 cd python-sdk
 pip install -e .
+# Or with poetry:
+poetry install
 ```
 
 ## Configuration
@@ -39,6 +41,12 @@ fcl-sync rankings --year 2025
 
 # Sync athletes from registrations
 fcl-sync athletes --year 2025
+
+# Sync registrations (for transfer eligibility)
+fcl-sync registrations --year 2025
+
+# Sync results for a specific event
+fcl-sync event-results --event-id 1410
 ```
 
 ### Backfill historical data
@@ -54,17 +62,16 @@ python-sdk/
 ├── ifsc_sdk/           # IFSC API client
 │   ├── client.py       # HTTP client with session handling
 │   └── models.py       # Response models
-├── fantasy_climbing/   # Main package
-│   ├── db.py           # Supabase client wrapper
-│   ├── sync.py         # Sync orchestration
-│   └── cli.py          # CLI entry point
-└── scripts/            # Standalone scripts
-    └── setup_test_data.py
+└── fantasy_climbing/   # Main package
+    ├── db.py           # Supabase client wrapper
+    ├── sync.py         # Sync orchestration
+    ├── scoring.py      # Points calculation
+    └── cli.py          # CLI entry point
 ```
 
 ## Development
 
 ```bash
-pip install -e ".[dev]"
-pytest
+poetry install
+poetry run pytest
 ```
