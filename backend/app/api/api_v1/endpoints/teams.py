@@ -5,6 +5,7 @@ from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
+from app.api.api_v1.endpoints.rankings import get_effective_rankings_bulk
 from app.core.auth import get_current_user_id
 from app.db.supabase import supabase
 from app.schemas.team import (
@@ -21,9 +22,9 @@ router = APIRouter()
 
 
 def get_athlete_tier(
-    climber_id: int, rankings: dict[int, int], tier_config: list[dict]
+    climber_id: int, rankings: dict[int, float], tier_config: list[dict]
 ) -> str:
-    """Determine which tier an athlete belongs to based on their ranking."""
+    """Determine which tier an athlete belongs to based on their effective ranking."""
     rank = rankings.get(climber_id)
 
     # If no ranking found, athlete goes to the lowest tier
@@ -48,43 +49,25 @@ def validate_roster_tier_limits(
     """
     Validate that the roster respects tier limits.
 
-    Gets the current season's rankings and checks that the roster
-    doesn't exceed any tier's max_per_team limit.
+    Uses effective rankings from last 3 seasons (with age penalty)
+    to determine athlete tiers and checks max_per_team limits.
     """
-    # Get current season (use current year)
-    current_season = datetime.now().year
-
-    # Fetch rankings for this discipline/gender/season
     climber_ids = [entry.climber_id for entry in roster]
     if not climber_ids:
         return
 
-    rankings_response = (
-        supabase.table("athlete_rankings")
-        .select("climber_id, rank")
-        .eq("discipline", discipline)
-        .eq("gender", gender)
-        .eq("season", current_season)
-        .in_("climber_id", climber_ids)
-        .execute()
-    )
+    # Get current season (use current year)
+    current_season = datetime.now().year
 
-    rankings_data = rankings_response.data or []
+    # Get effective rankings (best rank from last 3 seasons with age penalty)
+    all_effective = get_effective_rankings_bulk(discipline, gender, current_season)
 
-    # If no rankings found for current season, try previous season
-    if not rankings_data:
-        rankings_response = (
-            supabase.table("athlete_rankings")
-            .select("climber_id, rank")
-            .eq("discipline", discipline)
-            .eq("gender", gender)
-            .eq("season", current_season - 1)
-            .in_("climber_id", climber_ids)
-            .execute()
-        )
-        rankings_data = rankings_response.data or []
-
-    rankings = {r["climber_id"]: r["rank"] for r in rankings_data}
+    # Filter to only roster climbers, extract just the effective_rank (first element of tuple)
+    rankings = {
+        cid: effective[0]  # effective[0] is the effective_rank float
+        for cid, effective in all_effective.items()
+        if cid in climber_ids
+    }
 
     # Count athletes per tier
     tier_counts: dict[str, int] = {}

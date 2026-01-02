@@ -2,6 +2,7 @@
 Rankings API endpoints for syncing and retrieving IFSC world rankings.
 """
 
+from datetime import datetime
 from typing import Literal, Optional
 
 from app.core.auth import get_current_user_id
@@ -11,6 +12,12 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
 
 router = APIRouter()
+
+# Number of seasons to look back for effective ranking calculation
+SEASONS_LOOKBACK = 3
+
+# Age penalty per year (0.1 means rank 5 from 2 years ago becomes 5.2)
+AGE_PENALTY_PER_YEAR = 0.1
 
 
 # CUWR ID mapping for discipline + gender combinations
@@ -32,6 +39,17 @@ class RankingEntry(BaseModel):
     country: str
     rank: int
     score: Optional[float] = None
+
+
+class EffectiveRankingEntry(BaseModel):
+    """Effective ranking combining last N seasons with age penalty."""
+
+    climber_id: int
+    name: str
+    country: str
+    effective_rank: float  # Float due to age penalty
+    best_season: int  # Which season the best rank came from
+    original_rank: int  # The original rank from best_season
 
 
 class SyncResponse(BaseModel):
@@ -213,3 +231,137 @@ async def get_athlete_tier(
 
     # Fallback to last tier
     return {"tier": tiers[-1]["name"], "rank": rank}
+
+
+def calculate_effective_rank(
+    rankings_by_season: dict[int, int],
+    current_season: int,
+) -> tuple[float, int, int] | None:
+    """
+    Calculate effective rank from multiple seasons with age penalty.
+
+    Args:
+        rankings_by_season: Dict mapping season year to rank
+        current_season: The current season year
+
+    Returns:
+        Tuple of (effective_rank, best_season, original_rank) or None if no data
+    """
+    if not rankings_by_season:
+        return None
+
+    best_effective = None
+    best_season = None
+    best_original = None
+
+    for season, rank in rankings_by_season.items():
+        years_ago = current_season - season
+        effective = rank + (AGE_PENALTY_PER_YEAR * years_ago)
+
+        if best_effective is None or effective < best_effective:
+            best_effective = effective
+            best_season = season
+            best_original = rank
+
+    return (best_effective, best_season, best_original)
+
+
+def get_effective_rankings_bulk(
+    discipline: str,
+    gender: str,
+    current_season: int,
+    seasons_lookback: int = SEASONS_LOOKBACK,
+) -> dict[int, tuple[float, int, int]]:
+    """
+    Get effective rankings for all athletes in a discipline/gender.
+
+    Returns dict mapping climber_id to (effective_rank, best_season, original_rank)
+    """
+    seasons = list(range(current_season, current_season - seasons_lookback, -1))
+
+    response = (
+        supabase.table("athlete_rankings")
+        .select("climber_id, rank, season")
+        .eq("discipline", discipline)
+        .eq("gender", gender)
+        .in_("season", seasons)
+        .execute()
+    )
+
+    if not response.data:
+        return {}
+
+    # Group by climber_id
+    climber_seasons: dict[int, dict[int, int]] = {}
+    for entry in response.data:
+        climber_id = entry["climber_id"]
+        if climber_id not in climber_seasons:
+            climber_seasons[climber_id] = {}
+        climber_seasons[climber_id][entry["season"]] = entry["rank"]
+
+    # Calculate effective rank for each climber
+    result = {}
+    for climber_id, seasons_data in climber_seasons.items():
+        effective = calculate_effective_rank(seasons_data, current_season)
+        if effective:
+            result[climber_id] = effective
+
+    return result
+
+
+@router.get(
+    "/{discipline}/{gender}/effective", response_model=list[EffectiveRankingEntry]
+)
+async def get_effective_rankings(
+    discipline: Literal["boulder", "lead", "speed"],
+    gender: Literal["men", "women"],
+    limit: int = Query(500, ge=1, le=1000),
+):
+    """
+    Get effective rankings combining last 3 seasons with age penalty.
+
+    Athletes are ranked by their best performance across the last 3 seasons,
+    with a small penalty (0.1 per year) applied to older results for tiebreaking.
+    This ensures athletes who skip a season maintain their tier status.
+    """
+    current_season = datetime.now().year
+
+    # Get effective rankings
+    effective_rankings = get_effective_rankings_bulk(discipline, gender, current_season)
+
+    if not effective_rankings:
+        return []
+
+    # Get climber info
+    climber_ids = list(effective_rankings.keys())
+    climbers_response = (
+        supabase.table("climbers")
+        .select("id, name, country")
+        .in_("id", climber_ids)
+        .execute()
+    )
+
+    climbers_map = {c["id"]: c for c in (climbers_response.data or [])}
+
+    # Build result
+    result = []
+    for climber_id, (
+        effective_rank,
+        best_season,
+        original_rank,
+    ) in effective_rankings.items():
+        climber = climbers_map.get(climber_id, {})
+        result.append(
+            EffectiveRankingEntry(
+                climber_id=climber_id,
+                name=climber.get("name", "Unknown"),
+                country=climber.get("country", ""),
+                effective_rank=effective_rank,
+                best_season=best_season,
+                original_rank=original_rank,
+            )
+        )
+
+    # Sort by effective rank and limit
+    result.sort(key=lambda x: x.effective_rank)
+    return result[:limit]

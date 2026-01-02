@@ -3,9 +3,13 @@
 Sync IFSC rankings to the database via the API.
 
 Usage:
-    poetry run python sync_rankings.py
+    # Sync a specific season
+    poetry run python sync_rankings.py 2025
 
-This script syncs all 4 discipline/gender combinations for the current season.
+    # Backfill last 3 years (for initial setup)
+    poetry run python sync_rankings.py --backfill
+
+This script syncs all discipline/gender combinations for the specified season(s).
 """
 
 import asyncio
@@ -27,6 +31,9 @@ CUWR_COMBINATIONS = [
     ("speed", "men"),
     ("speed", "women"),
 ]
+
+# Number of years to backfill when using --backfill
+BACKFILL_YEARS = 3
 
 
 async def sync_rankings(season: int):
@@ -60,15 +67,35 @@ async def sync_rankings(season: int):
                 print(f"   ❌ Error: {e}")
 
 
+async def backfill_rankings(current_year: int, years: int = BACKFILL_YEARS):
+    """Backfill rankings for the last N years."""
+    print(
+        f"📚 Backfilling {years} years of rankings ({current_year - years + 1} to {current_year})"
+    )
+    print("=" * 50)
+
+    for year in range(current_year - years + 1, current_year + 1):
+        print(f"\n📅 Season {year}")
+        print("-" * 30)
+        await sync_rankings(year)
+
+
 if __name__ == "__main__":
     import sys
+    from datetime import datetime
 
-    # Use current year as default season
-    season = int(sys.argv[1]) if len(sys.argv) > 1 else 2025
+    current_year = datetime.now().year
 
-    print(f"🏔️  IFSC Rankings Sync - Season {season}")
-    print("=" * 40)
+    if len(sys.argv) > 1 and sys.argv[1] == "--backfill":
+        print("🏔️  IFSC Rankings Backfill")
+        print("=" * 40)
+        asyncio.run(backfill_rankings(current_year - 1))
+    else:
+        # Use provided year or current year
+        season = int(sys.argv[1]) if len(sys.argv) > 1 else current_year
 
-    asyncio.run(sync_rankings(season))
+        print(f"🏔️  IFSC Rankings Sync - Season {season}")
+        print("=" * 40)
+        asyncio.run(sync_rankings(season))
 
     print("\n✨ Done!")
