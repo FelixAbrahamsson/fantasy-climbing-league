@@ -148,51 +148,55 @@
   margin-bottom: var(--space-xl);
 }
 
-.features-grid {
+/* How It Works Steps */
+.how-it-works-steps {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--space-lg);
+  max-width: 900px;
+  margin: 0 auto;
 }
 
-.feature-card {
-  text-align: center;
-  padding: var(--space-xl);
+.step-card {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-lg);
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   transition: all var(--transition-base);
 }
 
-.feature-card:hover {
-  transform: translateY(-5px);
+.step-card:hover {
+  transform: translateY(-3px);
   border-color: var(--color-accent-primary);
   box-shadow: var(--shadow-glow);
 }
 
-.feature-icon {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto var(--space-md);
+.step-number {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--color-accent-gradient);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   color: white;
+  font-weight: 700;
+  font-size: 1.25rem;
 }
 
-.feature-icon svg {
-  width: 28px;
-  height: 28px;
+.step-content h3 {
+  margin-bottom: var(--space-xs);
+  font-size: 1.1rem;
 }
 
-.feature-card h3 {
-  margin-bottom: var(--space-sm);
-}
-
-.feature-card p {
+.step-content p {
   color: var(--color-text-secondary);
   font-size: 0.9375rem;
+  line-height: 1.5;
+  margin: 0;
 }
 
 /* Scoring Section */
@@ -266,7 +270,7 @@
     font-size: 1rem;
   }
   
-  .features-grid {
+  .how-it-works-steps {
     grid-template-columns: 1fr;
   }
   

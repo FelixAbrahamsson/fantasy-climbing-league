@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Mountain, Trophy, Users, TrendingUp } from "lucide-react";
+import { Mountain, Trophy } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { scoringAPI } from "../services/api";
 import type { ScoringConfig } from "../services/api";
@@ -35,7 +35,7 @@ export function Home() {
         <div className="hero-content">
           <div className="hero-badge">
             <Mountain size={16} />
-            Season 2025
+            Season 2026
           </div>
           <h1 className="hero-title">
             Fantasy Climbing
@@ -87,40 +87,91 @@ export function Home() {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* How It Works Section */}
       <section className="features">
         <div className="container">
           <h2 className="section-title">How It Works</h2>
-          <div className="features-grid">
-            <div className="feature-card">
-              <div className="feature-icon">
-                <Users />
+          <p className="section-subtitle">
+            Compete with friends by managing your own climbing team
+          </p>
+
+          <div className="how-it-works-steps">
+            {/* Step 1: Create/Join League */}
+            <div className="step-card">
+              <div className="step-number">1</div>
+              <div className="step-content">
+                <h3>Create or Join a League</h3>
+                <p>
+                  Create a private league and invite your friends. Choose which
+                  IFSC events are part of your league, and select the discipline
+                  (Boulder, Lead, or Speed) and gender category.
+                </p>
               </div>
-              <h3>Draft Your Team</h3>
-              <p>
-                Select 6 climbers from the IFSC World Cup circuit to form your
-                ultimate squad.
-              </p>
             </div>
-            <div className="feature-card">
-              <div className="feature-icon">
-                <Trophy />
+
+            {/* Step 2: Draft Your Team */}
+            <div className="step-card">
+              <div className="step-number">2</div>
+              <div className="step-content">
+                <h3>Draft Your Team</h3>
+                <p>
+                  Select athletes to form your squad. Athletes are divided into
+                  tiers based on their previous season rankings — you can only
+                  pick a limited number from each tier, so choose wisely!
+                </p>
               </div>
-              <h3>Earn Points</h3>
-              <p>
-                Score points based on your climbers' real performances. Captain
-                gets {captainBonusText} points!
-              </p>
             </div>
-            <div className="feature-card">
-              <div className="feature-icon">
-                <TrendingUp />
+
+            {/* Step 3: Earn Points */}
+            <div className="step-card">
+              <div className="step-number">3</div>
+              <div className="step-content">
+                <h3>Earn Points</h3>
+                <p>
+                  After each event, your athletes earn fantasy points based on
+                  their final placement. Points match the official IFSC World
+                  Cup scoring system — 1st place earns {getPoints(1)} points,
+                  2nd earns {getPoints(2)}, and so on.
+                </p>
               </div>
-              <h3>Climb the Ranks</h3>
-              <p>
-                Compete against friends in private leagues. Strategic transfers
-                after each event.
-              </p>
+            </div>
+
+            {/* Step 4: Captain Bonus */}
+            <div className="step-card">
+              <div className="step-number">4</div>
+              <div className="step-content">
+                <h3>Pick Your Captain</h3>
+                <p>
+                  Designate one athlete as your team captain. Your captain earns
+                  bonus points — pick the climber you believe will dominate!
+                </p>
+              </div>
+            </div>
+
+            {/* Step 5: Transfers */}
+            <div className="step-card">
+              <div className="step-number">5</div>
+              <div className="step-content">
+                <h3>Make Strategic Transfers</h3>
+                <p>
+                  After each event, you can swap athletes on your team. Use
+                  transfers to capitalize on rising stars or replace
+                  underperformers before the next competition.
+                </p>
+              </div>
+            </div>
+
+            {/* Step 6: Compete */}
+            <div className="step-card">
+              <div className="step-number">6</div>
+              <div className="step-content">
+                <h3>Climb the Leaderboard</h3>
+                <p>
+                  Compete against your friends throughout the season. Track
+                  everyone's scores, analyze event breakdowns, and prove you're
+                  the ultimate climbing manager!
+                </p>
+              </div>
             </div>
           </div>
         </div>
