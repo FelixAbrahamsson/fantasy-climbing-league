@@ -192,6 +192,54 @@ async def sync_results(event_id: int, dcat_id: int) -> dict:
     return results
 
 
+async def sync_event_results(ifsc_event_id: int) -> dict:
+    """
+    Fetch and populate results for a specific event by IFSC event ID.
+
+    This is the replacement for the old backend endpoint:
+    POST /api/v1/events/{event_id}/add-results
+
+    Args:
+        ifsc_event_id: IFSC event ID (e.g., 1410 for event 14100 internal ID)
+
+    Returns:
+        Dictionary with counts of synced data
+    """
+    client = IFSCClient()
+    results = {"categories": 0, "climbers": 0, "results": 0, "errors": []}
+
+    try:
+        # Fetch event details
+        full_event = await client.get_event(ifsc_event_id)
+        logger.info(f"Fetching results for: {full_event.event}")
+
+        for dcat in full_event.d_cats:
+            if dcat.status != "finished":
+                logger.info(f"  Skipping {dcat.dcat_name} - status: {dcat.status}")
+                continue
+
+            discipline = parse_discipline(dcat.discipline_kind)
+            if discipline is None:
+                continue
+
+            logger.info(f"  Syncing {dcat.dcat_name}...")
+            cat_results = await sync_results(ifsc_event_id, dcat.dcat_id)
+            results["categories"] += 1
+            results["climbers"] += cat_results["climbers"]
+            results["results"] += cat_results["results"]
+            results["errors"].extend(cat_results["errors"])
+
+        logger.info(
+            f"Synced {results['results']} results from {results['categories']} categories"
+        )
+
+    except IFSCClientError as e:
+        logger.error(f"IFSC API error: {e}")
+        results["errors"].append(str(e))
+
+    return results
+
+
 async def sync_all_results(year: int = 2025) -> dict:
     """
     Fetch and populate results for all completed events in a season.

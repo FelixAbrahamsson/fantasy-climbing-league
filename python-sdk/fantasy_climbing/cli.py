@@ -22,6 +22,7 @@ from .sync import (
     sync_all_rankings,
     sync_all_results,
     sync_athletes,
+    sync_event_results,
     sync_events,
     sync_registrations,
 )
@@ -83,6 +84,18 @@ async def run_sync(args: argparse.Namespace) -> int:
         print(
             f"\n✅ Synced {results['registrations']} registrations from {results['events']} events"
         )
+
+    elif args.command == "event-results":
+        if not args.event_id:
+            print("Error: --event-id is required for event-results command")
+            return 1
+        logger.info(f"Syncing results for event {args.event_id}...")
+        results = await sync_event_results(args.event_id)
+        print(
+            f"\n✅ Synced {results['results']} results from {results['categories']} categories"
+        )
+        if results["errors"]:
+            print(f"⚠️  Errors: {results['errors']}")
 
     else:
         # Full sync
@@ -146,6 +159,7 @@ Examples:
   fcl-sync --year 2025              # Full sync for 2025
   fcl-sync events --year 2025       # Sync only events
   fcl-sync athletes                 # Sync only athletes for current year
+  fcl-sync event-results --event-id 1410  # Add results for specific event
   fcl-sync --backfill --years 3     # Backfill last 3 years
   fcl-sync --all-events             # Include non-World Cup events
         """,
@@ -154,8 +168,21 @@ Examples:
     parser.add_argument(
         "command",
         nargs="?",
-        choices=["events", "athletes", "rankings", "results", "registrations"],
+        choices=[
+            "events",
+            "athletes",
+            "rankings",
+            "results",
+            "registrations",
+            "event-results",
+        ],
         help="Specific sync command (default: full sync)",
+    )
+
+    parser.add_argument(
+        "--event-id",
+        type=int,
+        help="IFSC event ID for event-results command (e.g., 1410)",
     )
 
     parser.add_argument(
